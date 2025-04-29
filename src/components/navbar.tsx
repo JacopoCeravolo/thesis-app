@@ -4,12 +4,22 @@ import Link from 'next/link'
 import styles from './navbar.module.css'
 import { Button } from './ui/button'
 import { Avatar, AvatarFallback } from './ui/avatar'
+import { usePathname } from 'next/navigation'
 
 export function Navbar() {
+  const pathname = usePathname()
+  const isAuthPage = pathname === '/login' || pathname === '/register'
+  
+  // Don't show the navbar on login/register pages
+  if (isAuthPage) return null
+  
+  // Simulating not logged in state (would come from auth context in a real app)
+  const isLoggedIn = false
+  
   return (
     <nav className={styles.navbar}>
       <div className={styles.container}>
-        <div className={styles.logo}>
+        <Link href="/" className={styles.logo}>
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="24"
@@ -26,29 +36,44 @@ export function Navbar() {
             <path d="M7 7h.01"></path>
           </svg>
           <span>STIX Analyzer</span>
-        </div>
+        </Link>
         <div className={styles.actions}>
-          <Button variant="ghost" size="icon" className={styles.iconButton}>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-5 w-5"
-            >
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"></path>
-              <circle cx="12" cy="12" r="3"></circle>
-            </svg>
-            <span className="sr-only">Settings</span>
-          </Button>
-          <Avatar>
-            <AvatarFallback>U</AvatarFallback>
-          </Avatar>
+          {isLoggedIn ? (
+            <>
+              <Button variant="ghost" size="icon" className={styles.iconButton}>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-5 w-5"
+                >
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <span className="sr-only">Settings</span>
+              </Button>
+              <Avatar>
+                <AvatarFallback>U</AvatarFallback>
+              </Avatar>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className={styles.authLink}>
+                Sign in
+              </Link>
+              <Link href="/register">
+                <button className={styles.registerButton}>
+                  Sign up
+                </button>
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </nav>

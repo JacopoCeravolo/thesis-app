@@ -3,14 +3,17 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  background-color: var(--card-bg);
+  background-color: var(--accent-color);
 }
 
 .container {
   display: flex;
   height: 4rem;
   align-items: center;
-  padding: 0 1rem;
+  padding: 0 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .logo {
@@ -19,13 +22,15 @@
   gap: 0.5rem;
   font-weight: 700;
   font-size: 1.25rem;
+  text-decoration: none;
+  color: var(--text-color);
 }
 
 .actions {
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 1rem;
 }
 
 .iconButton {
@@ -55,4 +60,34 @@
   color: white;
   font-weight: 500;
   cursor: pointer;
+}
+
+.authLink {
+  color: var(--text-color);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.5rem;
+  border-radius: var(--radius);
+  transition: background-color 0.2s;
+}
+
+.authLink:hover {
+  background-color: var(--accent-hover);
+}
+
+.registerButton {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.registerButton:hover {
+  background-color: var(--primary-dark);
 }
