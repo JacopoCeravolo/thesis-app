@@ -1,0 +1,146 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.header {
+  padding: 1rem;
+}
+
+.title {
+  font-weight: 600;
+  font-size: 1.125rem;
+  margin-bottom: 1rem;
+  color: var(--text-color);
+}
+
+.tabsRow {
+  display: flex;
+  margin-bottom: 0.75rem;
+}
+
+.tabsList {
+  display: flex;
+  background-color: var(--accent-color);
+  border-radius: var(--radius);
+  padding: 0.25rem;
+}
+
+.tab {
+  border: none;
+  background: transparent;
+  font-size: 0.875rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: calc(var(--radius) - 0.25rem);
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+.tab[data-state="active"] {
+  background-color: var(--background-color);
+  color: var(--text-color);
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.searchInput {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+  background-color: var(--accent-color);
+  color: var(--text-color);
+}
+
+.separator {
+  height: 1px;
+  background-color: var(--border-color);
+  margin: 0;
+}
+
+.contentContainer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.viewTabs {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.viewTabsList {
+  height: 2.5rem;
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+  padding-left: 1rem;
+}
+
+.viewTab {
+  height: 100%;
+  padding: 0 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.875rem;
+  position: relative;
+  color: var(--text-color);
+}
+
+.viewTab[data-state="active"] {
+  font-weight: 500;
+}
+
+.viewTab[data-state="active"]::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--primary-color);
+}
+
+.viewContent {
+  flex: 1;
+  padding: 0;
+  margin: 0;
+  display: none;
+}
+
+.viewContent[data-state="active"] {
+  display: flex;
+  flex-direction: column;
+}
+
+.jsonView {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.graphContainer {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loadingMessage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 2rem;
+  font-size: 0.875rem;
+}

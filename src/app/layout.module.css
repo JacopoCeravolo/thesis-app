@@ -1,0 +1,49 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  height: calc(100vh - 60px); /* Adjust based on navbar height */
+  overflow: hidden;
+}
+
+.leftSidebar {
+  width: 16rem;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border-color);
+  height: 100%;
+  overflow-y: auto;
+}
+
+.center {
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+  min-width: 300px; /* Ensure center doesn't collapse completely */
+}
+
+.rightSidebar {
+  width: 20rem;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border-color);
+  height: 100%;
+  overflow-y: auto;
+  position: relative;
+}
+
+.resizeHandle {
+  position: absolute;
+  top: 0;
+  left: -5px;
+  width: 10px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 10;
+  background-color: transparent;
+}

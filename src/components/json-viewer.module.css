@@ -1,0 +1,37 @@
+.container {
+  font-family: monospace;
+  font-size: 0.875rem;
+  padding-bottom: 1rem;
+  color: var(--text-color);
+}
+
+.key {
+  color: #3b82f6; /* Primary blue color */
+}
+
+.valueString {
+  color: #10b981; /* Green */
+}
+
+.valueNumber {
+  color: #f59e0b; /* Amber */
+}
+
+.valueBoolean {
+  color: #8b5cf6; /* Purple */
+}
+
+.valueNull {
+  color: #ef4444; /* Red */
+}
+
+.selected {
+  background-color: var(--accent-color);
+  padding: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.clickable {
+  cursor: pointer;
+}
