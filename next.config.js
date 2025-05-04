@@ -11,6 +11,13 @@ const nextConfig = {
     // !! WARN !!
     ignoreBuildErrors: true,
   },
+  webpack: (config, { isServer }) => {
+    // If on the server side, add canvas to the list of externals
+    if (isServer) {
+      config.externals = [...config.externals, 'canvas'];
+    }
+    return config;
+  },
 }
 
 module.exports = nextConfig
