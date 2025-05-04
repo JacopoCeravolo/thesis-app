@@ -8,9 +8,9 @@ export async function POST(request: NextRequest) {
     const { name, email, password } = body;
 
     // Validation
-    if (!name || !email || !password) {
+    if (!email || !password) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Email and password are required" },
         { status: 400 }
       );
     }
@@ -30,26 +30,30 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await hashPassword(password);
 
-    // Create user
+    // Create new user
     const user = await prisma.user.create({
       data: {
-        name,
+        name: name || '',
         email,
         password: hashedPassword,
       },
     });
 
-    // Don't return the password
+    // Return user without password
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _, ...userWithoutPassword } = user;
 
     return NextResponse.json(
-      { message: "User created successfully", user: userWithoutPassword },
+      { 
+        message: "User registered successfully",
+        user: userWithoutPassword
+      },
       { status: 201 }
     );
   } catch (error) {
     console.error("Registration error:", error);
     return NextResponse.json(
-      { error: "Something went wrong" },
+      { error: "Registration failed" },
       { status: 500 }
     );
   }

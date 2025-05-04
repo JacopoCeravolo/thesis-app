@@ -87,7 +87,6 @@ function DocumentHistoryContent() {
                 id={doc.id}
                 name={doc.fileName}
                 timestamp={doc.uploadedAt}
-                fileType={doc.fileType}
               />
             ))}
           </div>
@@ -109,10 +108,9 @@ interface DocumentListItemProps {
   id: string
   name: string
   timestamp: string
-  fileType: string
 }
 
-function DocumentListItem({ id, name, timestamp, fileType }: DocumentListItemProps) {
+function DocumentListItem({ id, name, timestamp }: DocumentListItemProps) {
   // Format the timestamp to a more readable format
   const formattedDate = new Date(timestamp).toLocaleDateString('en-US', {
     month: 'short',

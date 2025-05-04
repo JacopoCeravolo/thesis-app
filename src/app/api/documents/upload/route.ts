@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../../auth/[...nextauth]/route";
+import { authOptions } from "../../auth/[...nextauth]/options";
 import prisma from "../../../../../lib/prisma";
 import { uploadDocumentWithText } from "../../../../../lib/blobStorage";
 
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     );
     
     // Save document metadata to database
-    // @ts-ignore - We know the document model exists
+    // @ts-expect-error - We know the document model exists
     const document = await prisma.document.create({
       data: {
         fileName: file.name,

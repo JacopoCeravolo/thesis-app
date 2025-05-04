@@ -1,0 +1,2 @@
+# Ignore type declaration files during deployment
+src/types/*.d.ts

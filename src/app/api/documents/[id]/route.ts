@@ -1,11 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../../auth/[...nextauth]/route";
+import { authOptions } from "../../auth/[...nextauth]/options";
 import prisma from "../../../../../lib/prisma";
-import { del } from '@vercel/blob';
 
 export async function GET(
-  request: NextRequest,
+  request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -23,7 +22,7 @@ export async function GET(
     const documentId = params.id;
     
     // Find the document and ensure it belongs to the current user
-    // @ts-ignore - We know the document model exists
+    // @ts-expect-error - We know the document model exists
     const document = await prisma.document.findFirst({
       where: {
         id: documentId,
@@ -67,7 +66,7 @@ export async function GET(
 }
 
 export async function DELETE(
-  request: NextRequest,
+  request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -85,7 +84,7 @@ export async function DELETE(
     const documentId = params.id;
     
     // Find the document and ensure it belongs to the current user
-    // @ts-ignore - We know the document model exists
+    // @ts-expect-error - We know the document model exists
     const document = await prisma.document.findFirst({
       where: {
         id: documentId,
@@ -101,15 +100,12 @@ export async function DELETE(
     }
     
     // Delete document from database
-    // @ts-ignore - We know the document model exists
+    // @ts-expect-error - We know the document model exists
     await prisma.document.delete({
       where: {
         id: documentId,
       },
     });
-    
-    // Note: Vercel Blob Storage will automatically clean up
-    // blobs that are no longer referenced (garbage collection)
     
     return NextResponse.json({ 
       message: "Document deleted successfully" 
