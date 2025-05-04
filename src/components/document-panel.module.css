@@ -73,90 +73,18 @@
 
 /* File uploader styles */
 .uploaderContainer {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100%;
   padding: 2rem;
-  overflow: auto;
+  height: 100%;
+  min-height: 400px;
 }
 
 .dropzone {
-  border: 2px dashed var(--border-color);
-  border-radius: var(--radius);
-  padding: 3rem;
-  width: 100%;
-  max-width: 36rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  transition: all 0.2s;
-  color: var(--text-color);
-}
-
-.dropzoneActive {
-  border-color: var(--primary-color);
-  background-color: rgba(59, 130, 246, 0.05);
-}
-
-.iconContainer {
-  width: 3rem;
-  height: 3rem;
-  border-radius: 9999px;
-  background-color: rgba(59, 130, 246, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 1rem;
-}
-
-.iconPrimary {
-  color: var(--primary-color);
-}
-
-.dropzoneTitle {
-  font-size: 1.125rem;
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-  color: var(--text-color);
-}
-
-.dropzoneText {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  text-align: center;
-  margin-bottom: 1.5rem;
-}
-
-.fileFormats {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  margin-bottom: 1rem;
-  text-align: center;
-}
-
-.browseButton {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius);
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.browseButton:hover {
-  background-color: var(--primary-dark);
-}
-
-.fileInput {
-  display: none;
-}
-
-.fileUploader {
-  border: 2px dashed var(--border);
+  border: 2px dashed #e4e4e7;
   border-radius: 8px;
   padding: 2rem;
   display: flex;
@@ -166,77 +94,95 @@
   text-align: center;
   cursor: pointer;
   transition: all 0.2s ease;
-  background-color: var(--background);
-  min-height: 300px;
+  background-color: transparent;
+  width: 100%;
+  max-width: 500px;
 }
 
-.dragging {
-  border-color: var(--primary);
-  background-color: rgba(var(--primary-rgb), 0.05);
-}
-
-.uploadContent {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  max-width: 400px;
+.dropzoneActive {
+  border-color: #3b82f6;
+  background-color: rgba(59, 130, 246, 0.05);
 }
 
 .uploadIcon {
-  width: 48px;
-  height: 48px;
-  color: var(--primary);
   margin-bottom: 1rem;
+  color: #3b82f6;
 }
 
-.dragText {
-  margin: 1rem 0;
-  color: var(--muted-foreground);
+.uploadTitle {
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
 }
 
-.selectedFileInfo {
-  margin: 1rem 0;
-  padding: 1rem;
-  background-color: rgba(var(--primary-rgb), 0.05);
-  border-radius: 6px;
-  width: 100%;
-}
-
-.errorMessage {
-  color: var(--destructive);
-  margin: 0.5rem 0;
+.uploadText {
+  margin-bottom: 0.5rem;
+  color: #71717a;
+  font-size: 0.9rem;
 }
 
 .supportedFormats {
   font-size: 0.8rem;
-  color: var(--muted-foreground);
+  color: #a1a1aa;
+  margin: 0.5rem 0 1rem 0;
+}
+
+.browseFilesButton {
   margin-top: 0.5rem;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  padding: 0.5rem 1.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
+  margin-bottom: 0.5rem;
+}
+
+.browseFilesButton:hover {
+  background-color: #2563eb;
+}
+
+.browseFilesButton:disabled {
+  background-color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.error {
+  color: #ef4444;
+  margin: 0.5rem 0;
+  font-size: 0.875rem;
 }
 
 .fileInput {
   display: none;
 }
 
-.browseButton {
-  margin-top: 1rem;
-  background-color: var(--primary);
-  color: white;
-  border: none;
+.selectedFile {
+  color: #ef4444;
+  margin: 0.5rem 0;
+  font-size: 0.875rem;
+}
+
+.selectedFileInfo {
+  background-color: rgba(59, 130, 246, 0.1);
   padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: background-color 0.2s;
+  border-radius: 6px;
+  margin: 0.5rem 0;
+  width: 100%;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
 }
 
-.browseButton:hover {
-  background-color: rgba(var(--primary-rgb), 0.8);
-}
-
-.browseButton:disabled {
-  background-color: var(--muted);
-  cursor: not-allowed;
+.selectedFileInfo p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #3b82f6;
 }
 
 /* Document viewer styles */

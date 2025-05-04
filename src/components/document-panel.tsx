@@ -45,14 +45,14 @@ function DocumentPanelContent() {
   const router = useRouter()
   const { state, dispatch } = useDocument()
 
-  // Handle document upload
-  const handleUpload = async () => {
-    if (!file || !session?.user) {
-      if (!file) setUploadError('Please select a file to upload');
-      if (!session?.user) router.push('/login');
+  // Handle file upload 
+  const handleFileUpload = async (file: File) => {
+    if (!session?.user) {
+      router.push('/login');
       return;
     }
 
+    setFile(file);
     setIsUploading(true);
     setUploadError(null);
     
@@ -197,8 +197,7 @@ function DocumentPanelContent() {
 
   if (!file && !documentData) {
     return <FileUploader 
-      onFileSelect={setFile}
-      onUpload={handleUpload}
+      onFileUpload={handleFileUpload}
       isUploading={isUploading}
       error={uploadError}
     />
@@ -266,15 +265,15 @@ export function DocumentPanel() {
 }
 
 interface FileUploaderProps {
-  onFileSelect: (file: File) => void
-  onUpload: () => void
+  onFileUpload: (file: File) => void
   isUploading: boolean
   error: string | null
 }
 
-function FileUploader({ onFileSelect, onUpload, isUploading, error }: FileUploaderProps) {
+function FileUploader({ onFileUpload, isUploading, error }: FileUploaderProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [showFileError, setShowFileError] = useState(false)
   
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -292,7 +291,7 @@ function FileUploader({ onFileSelect, onUpload, isUploading, error }: FileUpload
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0]
       setSelectedFile(file)
-      onFileSelect(file)
+      setShowFileError(false)
     }
   }
   
@@ -300,39 +299,67 @@ function FileUploader({ onFileSelect, onUpload, isUploading, error }: FileUpload
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0]
       setSelectedFile(file)
-      onFileSelect(file)
+      setShowFileError(false)
+    }
+  }
+
+  const handleUploadClick = () => {
+    if (selectedFile) {
+      onFileUpload(selectedFile)
+    } else {
+      setShowFileError(true)
+      document.getElementById('file-upload')?.click()
     }
   }
 
   return (
-    <div 
-      className={`${styles.fileUploader} ${isDragging ? styles.dragging : ''}`}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-    >
-      <div className={styles.uploadContent}>
-        <UploadIcon className={styles.uploadIcon} />
-        <h3>Upload Intelligence Report</h3>
-        {selectedFile ? (
-          <div className={styles.selectedFileInfo}>
-            <p>Selected file: {selectedFile.name}</p>
-            <Button 
-              onClick={onUpload} 
-              disabled={isUploading}
-            >
-              {isUploading ? 'Processing...' : 'Upload Document'}
-            </Button>
-          </div>
-        ) : (
-          <p className={styles.dragText}>
-            Drag and drop your file here, or click to browse
-          </p>
-        )}
-        {error && <p className={styles.errorMessage}>{error}</p>}
-        <p className={styles.supportedFormats}>
-          Supported formats: PDF, DOCX, DOC, TXT, JSON
+    <div className={styles.uploaderContainer}>
+      <div 
+        className={`${styles.dropzone} ${isDragging ? styles.dropzoneActive : ''}`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        <div className={styles.uploadIcon}>
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width="24" 
+            height="24" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" x2="12" y1="3" y2="15" />
+          </svg>
+        </div>
+        <h3 className={styles.uploadTitle}>
+          Upload a document
+        </h3>
+        <p className={styles.uploadText}>
+          Drag and drop your file here or click to browse
         </p>
+        <div className={styles.supportedFormats}>
+          Supported formats: PDF, DOCX, DOC, TXT, JSON
+        </div>
+        
+        {showFileError && (
+          <p className={styles.selectedFile}>Please select a file to upload</p>
+        )}
+        
+        {selectedFile && (
+          <div className={styles.selectedFileInfo}>
+            <p>Selected: {selectedFile.name}</p>
+          </div>
+        )}
+        
+        {error && (
+          <div className={styles.error}>{error}</div>
+        )}
         <input
           id="file-upload"
           type="file"
@@ -343,11 +370,11 @@ function FileUploader({ onFileSelect, onUpload, isUploading, error }: FileUpload
         />
         <button 
           type="button" 
-          className={styles.browseButton}
-          onClick={() => document.getElementById('file-upload')?.click()}
+          className={styles.browseFilesButton}
+          onClick={selectedFile ? handleUploadClick : () => document.getElementById('file-upload')?.click()}
           disabled={isUploading}
         >
-          {isUploading ? 'Processing...' : 'Browse Files'}
+          {isUploading ? 'Uploading...' : selectedFile ? 'Upload File' : 'Browse Files'}
         </button>
       </div>
     </div>

@@ -12,53 +12,111 @@ export async function extractStixWithGemini(
   documentContent: string,
   documentName: string,
 ): Promise<STIXBundle> {
+  console.log(`[STIX Extraction] Starting extraction for document: ${documentName}`);
+  console.log(`[STIX Extraction] Document content length: ${documentContent.length} characters`);
+  
   // Initialize the Gemini API client
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
+    console.error('[STIX Extraction] GEMINI_API_KEY is not set in environment variables');
     throw new Error('GEMINI_API_KEY is not set in environment variables');
   }
+  console.log('[STIX Extraction] Successfully retrieved Gemini API key');
 
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+  console.log('[STIX Extraction] Initialized Gemini model: gemini-2.0-flash');
 
   try {
     // Read the extraction prompt
     const promptPath = path.join(process.cwd(), 'prompts', 'one-shot-extraction.txt');
-    const systemPrompt = fs.readFileSync(promptPath, 'utf-8');
+    console.log(`[STIX Extraction] Reading prompt from: ${promptPath}`);
+    
+    let systemPrompt;
+    try {
+      systemPrompt = fs.readFileSync(promptPath, 'utf-8');
+      console.log(`[STIX Extraction] Successfully loaded prompt (${systemPrompt.length} characters)`);
+    } catch (error: any) {
+      console.error(`[STIX Extraction] Error reading prompt file:`, error);
+      throw new Error(`Failed to read prompt file: ${error.message}`);
+    }
     
     // Prepare content for extraction
     const content = `Text:\n${documentContent}`;
+    console.log(`[STIX Extraction] Prepared content for Gemini (total length: ${content.length} characters)`);
     
-    // Get response from Gemini
-    const result = await model.generateContent([systemPrompt, content]);
-    const response = result.response;
-    const responseText = response.text();
+    // Call Gemini API
+    console.log('[STIX Extraction] Calling Gemini API...');
+    const startTime = Date.now();
     
-    // Clean and parse the JSON response
-    const cleanedJson = cleanJsonResponse(responseText);
-    let stixObjects: STIXObject[] = [];
+    const response = await model.generateContent([systemPrompt, content]);
+    const endTime = Date.now();
+    console.log(`[STIX Extraction] Gemini API call completed in ${endTime - startTime}ms`);
     
+    // Log the raw response
+    console.log('[STIX Extraction] Raw Gemini response:', JSON.stringify(response));
+    
+    // Extract text from response
+    const responseText = response.response.text();
+    console.log(`[STIX Extraction] Response text length: ${responseText.length} characters`);
+    console.log('[STIX Extraction] Response text preview:', responseText.substring(0, 500) + (responseText.length > 500 ? '...' : ''));
+    
+    // Clean up and parse the JSON response
+    console.log('[STIX Extraction] Cleaning and parsing JSON response...');
+    const cleanedText = cleanJsonResponse(responseText);
+    console.log('[STIX Extraction] Cleaned text:', cleanedText.substring(0, 500) + (cleanedText.length > 500 ? '...' : ''));
+    
+    let stixData;
     try {
-      stixObjects = JSON.parse(cleanedJson);
-    } catch (error) {
-      console.error('Error parsing STIX JSON:', error);
-      // Return empty objects if parsing fails
-      stixObjects = [];
+      stixData = JSON.parse(cleanedText);
+      console.log('[STIX Extraction] Successfully parsed JSON response');
+    } catch (error: any) {
+      console.error('[STIX Extraction] Failed to parse JSON response:', error);
+      console.log('[STIX Extraction] Failed JSON content:', cleanedText);
+      throw new Error(`Failed to parse STIX JSON: ${error.message}`);
+    }
+
+    // Create a STIX bundle from the response
+    const bundleId = `bundle--${uuidv4()}`;
+    console.log(`[STIX Extraction] Creating STIX bundle with ID: ${bundleId}`);
+    
+    // If the response is already a bundle, just ensure it has all required fields
+    let bundle: STIXBundle;
+    if (stixData.type === 'bundle' && Array.isArray(stixData.objects)) {
+      console.log(`[STIX Extraction] Response is already a STIX bundle with ${stixData.objects.length} objects`);
+      bundle = stixData;
+      bundle.id = bundle.id || bundleId;
+    } else if (Array.isArray(stixData)) {
+      // If the response is an array of STIX objects, create a bundle
+      console.log(`[STIX Extraction] Response is an array of ${stixData.length} STIX objects`);
+      bundle = {
+        type: 'bundle',
+        id: bundleId,
+        objects: stixData
+      };
+    } else {
+      console.warn('[STIX Extraction] Response format is unexpected, creating empty bundle');
+      bundle = {
+        type: 'bundle',
+        id: bundleId,
+        objects: []
+      };
     }
     
-    // Add UUIDs to all objects
-    stixObjects = addUuidToIds(stixObjects);
+    // Check if we have any objects
+    if (bundle.objects.length === 0) {
+      console.warn('[STIX Extraction] No STIX objects found in the response');
+    } else {
+      console.log(`[STIX Extraction] Found ${bundle.objects.length} STIX objects`);
+      // Log the first few object types
+      const objectTypes = bundle.objects.slice(0, 5).map(obj => obj.type);
+      console.log('[STIX Extraction] First few object types:', objectTypes);
+    }
     
-    // Create the bundle
-    const bundle: STIXBundle = {
-      type: 'bundle',
-      id: `bundle--${uuidv4()}`,
-      objects: stixObjects
-    };
-    
+    console.log('[STIX Extraction] STIX extraction completed successfully');
     return bundle;
   } catch (error) {
-    console.error('Error during STIX extraction with Gemini:', error);
+    console.error('[STIX Extraction] Error during STIX extraction with Gemini:', error);
     // Return an empty bundle if extraction fails
     return {
       type: 'bundle',
@@ -72,26 +130,36 @@ export async function extractStixWithGemini(
  * Clean JSON response from LLM output
  */
 function cleanJsonResponse(responseText: string): string {
+  console.log('[STIX Extraction] Cleaning JSON response...');
+  
   // Remove markdown code block markers if present
   let cleanedText = responseText.replace(/^```json|```$|^```/gm, '').trim();
-  return cleanedText;
-}
-
-/**
- * Add UUIDs to 'id' fields in STIX objects
- */
-function addUuidToIds(stixData: STIXObject[]): STIXObject[] {
-  return stixData.map(item => {
-    // If item already has an id with UUID, keep it
-    if (item.id && item.id.includes('--') && item.id.split('--')[1].length > 8) {
-      return item;
+  
+  // If the response doesn't start with { or [, try to find the beginning of the JSON
+  if (!cleanedText.startsWith('{') && !cleanedText.startsWith('[')) {
+    console.log('[STIX Extraction] JSON doesn\'t start with { or [, searching for JSON start');
+    const jsonStartIndexObject = cleanedText.indexOf('{');
+    const jsonStartIndexArray = cleanedText.indexOf('[');
+    
+    // Find the earliest valid JSON start
+    let jsonStartIndex = -1;
+    if (jsonStartIndexObject >= 0 && jsonStartIndexArray >= 0) {
+      jsonStartIndex = Math.min(jsonStartIndexObject, jsonStartIndexArray);
+    } else if (jsonStartIndexObject >= 0) {
+      jsonStartIndex = jsonStartIndexObject;
+    } else if (jsonStartIndexArray >= 0) {
+      jsonStartIndex = jsonStartIndexArray;
     }
     
-    // Otherwise generate a new UUID
-    const objectType = item.type;
-    const newId = `${objectType}--${uuidv4()}`;
-    return { ...item, id: newId };
-  });
+    if (jsonStartIndex >= 0) {
+      console.log(`[STIX Extraction] Found JSON start at index ${jsonStartIndex}`);
+      cleanedText = cleanedText.substring(jsonStartIndex);
+    } else {
+      console.warn('[STIX Extraction] No JSON start found in response');
+    }
+  }
+  
+  return cleanedText;
 }
 
 /**
