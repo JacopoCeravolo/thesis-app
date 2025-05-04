@@ -1,6 +1,11 @@
 "use client"
 
 import { useState, useCallback } from 'react'
+import { Button } from './ui/button'
+import { ScrollArea } from './ui/scroll-area'
+import { Textarea } from './ui/textarea'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
+import { Separator } from './ui/separator'
 import styles from './document-panel.module.css'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -140,60 +145,66 @@ function DocumentPanelContent() {
       timestamp: new Date()
     }
 
-    setMessages(prev => [...prev, userMessage])
-    setInputMessage('')
+    // Add system response (mock response for now)
+    const systemMessage = {
+      id: (Date.now() + 1).toString(),
+      content: `I've analyzed the document and found several STIX objects related to your query about "${inputMessage}". Check the STIX inspector for details.`,
+      sender: 'system' as const,
+      timestamp: new Date()
+    }
 
-    // Simulate response (in a real app, this would be an API call)
-    setTimeout(() => {
-      const systemMessage = {
-        id: (Date.now() + 1).toString(),
-        content: "This is a placeholder response. In a real application, the AI would analyze the document and provide a relevant answer.",
-        sender: 'system' as const,
-        timestamp: new Date()
-      }
-      setMessages(prev => [...prev, systemMessage])
-    }, 1000)
+    setMessages(prevMessages => [...prevMessages, userMessage, systemMessage])
+    setInputMessage('')
+  }
+
+  if (!file && !documentData) {
+    return <FileUploader 
+      onFileUpload={handleFileUpload} 
+      isUploading={isUploading}
+      error={uploadError}
+    />
   }
 
   return (
     <div className={styles.container}>
-      <div className={styles.mainPanel}>
-        <div className={styles.header}>
-          <h2 className={styles.title}>Document Analysis</h2>
-          <div className={styles.tabContainer}>
-            <button 
-              className={`${styles.tab} ${activeTab === 'document' ? styles.activeTab : ''}`}
-              onClick={() => setActiveTab('document')}
-            >
-              Document
-            </button>
-            <button 
-              className={`${styles.tab} ${activeTab === 'chat' ? styles.activeTab : ''}`}
-              onClick={() => setActiveTab('chat')}
-            >
-              Chat
-            </button>
-          </div>
+      <div className={styles.tabsContainer}>
+        <div className={styles.tabsList}>
+          <button 
+            className={styles.tabTrigger} 
+            data-state={activeTab === 'document' ? 'active' : ''}
+            onClick={() => setActiveTab('document')}
+          >
+            Document
+          </button>
+          <button 
+            className={styles.tabTrigger} 
+            data-state={activeTab === 'chat' ? 'active' : ''}
+            onClick={() => setActiveTab('chat')}
+          >
+            Chat
+          </button>
         </div>
-        <div className={styles.content}>
-          {activeTab === 'document' ? (
-            documentData ? (
-              <DocumentViewer file={file} documentData={documentData} />
-            ) : (
-              <FileUploader 
-                onFileUpload={handleFileUpload} 
-                isUploading={isUploading}
-                error={uploadError}
-              />
-            )
-          ) : (
-            <ChatInterface 
-              messages={messages} 
-              inputMessage={inputMessage}
-              setInputMessage={setInputMessage}
-              handleMessageSubmit={handleMessageSubmit}
-            />
-          )}
+        
+        <div 
+          className={styles.tabContent} 
+          data-state={activeTab === 'document' ? 'active' : ''}
+        >
+          <DocumentViewer 
+            file={file} 
+            documentData={documentData} 
+          />
+        </div>
+        
+        <div 
+          className={styles.tabContent} 
+          data-state={activeTab === 'chat' ? 'active' : ''}
+        >
+          <ChatInterface 
+            messages={messages} 
+            inputMessage={inputMessage} 
+            setInputMessage={setInputMessage}
+            handleMessageSubmit={handleMessageSubmit}
+          />
         </div>
       </div>
     </div>
@@ -216,87 +227,86 @@ interface FileUploaderProps {
 
 function FileUploader({ onFileUpload, isUploading, error }: FileUploaderProps) {
   const [isDragging, setIsDragging] = useState(false)
-
+  
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(true)
   }
-
+  
   const handleDragLeave = () => {
     setIsDragging(false)
   }
-
+  
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
     
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       onFileUpload(e.dataTransfer.files[0])
     }
   }
-
+  
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
+    if (e.target.files && e.target.files.length > 0) {
       onFileUpload(e.target.files[0])
     }
   }
 
   return (
-    <div className={styles.fileUploaderContainer}>
+    <div className={styles.uploaderContainer}>
       <div 
-        className={`${styles.dropzone} ${isDragging ? styles.dragActive : ''}`}
+        className={`${styles.dropzone} ${isDragging ? styles.dropzoneActive : ''}`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <div className={styles.uploadContent}>
+        <div className={styles.iconContainer}>
           <svg 
             xmlns="http://www.w3.org/2000/svg" 
-            width="48" 
-            height="48" 
+            width="24" 
+            height="24" 
             viewBox="0 0 24 24" 
             fill="none" 
             stroke="currentColor" 
-            strokeWidth="1.5" 
+            strokeWidth="2" 
             strokeLinecap="round" 
             strokeLinejoin="round"
-            className={styles.uploadIcon}
+            className={styles.iconPrimary}
           >
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
             <polyline points="17 8 12 3 7 8" />
-            <line x1="12" y1="3" x2="12" y2="15" />
+            <line x1="12" x2="12" y1="3" y2="15" />
           </svg>
-          
-          <div className={styles.uploadText}>
-            <h3>Upload Document</h3>
-            <p>Drag and drop a file or click to browse</p>
-            <p className={styles.supportedFormats}>Supported formats: PDF, DOCX, DOC, TXT, JSON</p>
-          </div>
-
-          <label className={styles.browseButton}>
-            Browse Files
-            <input
-              type="file"
-              accept=".pdf,.docx,.doc,.txt,.json"
-              onChange={handleFileChange}
-              className={styles.fileInput}
-            />
-          </label>
         </div>
+        <h3 className={styles.dropzoneTitle}>
+          {isUploading ? 'Uploading...' : 'Upload a document'}
+        </h3>
+        {error && (
+          <div className={styles.error}>{error}</div>
+        )}
+        <p className={styles.dropzoneText}>
+          Drag and drop your file here or click to browse
+        </p>
+        <p className={styles.fileFormats}>
+          Supported formats: PDF, DOCX, DOC, TXT, JSON
+        </p>
+        <input
+          id="file-upload"
+          type="file"
+          className={styles.fileInput}
+          accept=".pdf,.docx,.doc,.txt,.json"
+          onChange={handleFileChange}
+          disabled={isUploading}
+        />
+        <button 
+          type="button" 
+          className={styles.browseButton}
+          onClick={() => document.getElementById('file-upload')?.click()}
+          disabled={isUploading}
+        >
+          {isUploading ? 'Processing...' : 'Browse Files'}
+        </button>
       </div>
-
-      {isUploading && (
-        <div className={styles.uploadingIndicator}>
-          <div className={styles.spinner}></div>
-          <p>Uploading document...</p>
-        </div>
-      )}
-
-      {error && (
-        <div className={styles.errorMessage}>
-          <p>{error}</p>
-        </div>
-      )}
     </div>
   )
 }
@@ -307,29 +317,31 @@ interface DocumentViewerProps {
 }
 
 function DocumentViewer({ file, documentData }: DocumentViewerProps) {
-  // Determine what type of content to display based on file type
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const fileName = file?.name || documentData?.fileName || 'Unknown';
   const fileType = file?.type || documentData?.fileType || '';
-
+  const textContent = documentData?.textContent || '';
+  
   return (
     <div className={styles.documentViewer}>
-      <div className={styles.documentHeader}>
-        <h3 className={styles.documentTitle}>
-          {documentData?.fileName || file?.name || 'Document'}
-        </h3>
-      </div>
       <div className={styles.documentContent}>
-        {documentData?.textContent ? (
-          <div className={styles.textContent}>
-            {documentData.textContent.split('\n').map((line, i) => (
-              <p key={i}>{line}</p>
-            ))}
-          </div>
-        ) : (
-          <div className={styles.placeholderContent}>
-            <p>Document content is being processed or is not available.</p>
-          </div>
-        )}
+        <h2 className={styles.documentTitle}>{fileName}</h2>
+        <div className={styles.prose}>
+          {textContent ? (
+            <pre className={styles.documentText}>{textContent}</pre>
+          ) : (
+            <>
+              <p>This is the document content. In a real application, this would show the parsed content of your uploaded {fileName.split('.').pop()} file.</p>
+              <p>The document would be processed to extract STIX objects, and those objects would be highlighted in this view.</p>
+              <p>For example, this document contains references to:</p>
+              <ul>
+                <li><span className={`${styles.entityHighlight} ${styles.entityMalware}`}>Malware: TrickBot</span></li>
+                <li><span className={`${styles.entityHighlight} ${styles.entityThreatActor}`}>Threat Actor: Wizard Spider</span></li>
+                <li><span className={`${styles.entityHighlight} ${styles.entityAttackPattern}`}>Attack Pattern: Phishing</span></li>
+              </ul>
+              <p>These objects have been added to the STIX bundle in the right sidebar.</p>
+            </>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -416,5 +428,26 @@ function ChatInterface({
         </form>
       </div>
     </div>
+  )
+}
+
+function UploadIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      width="24" 
+      height="24" 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
+    </svg>
   )
 }
