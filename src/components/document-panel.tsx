@@ -55,11 +55,9 @@ function DocumentPanelContent() {
     setFile(file);
     setIsUploading(true);
     setUploadError(null);
-    
-    // Signal that STIX loading has started
-    dispatch({ type: 'STIX_LOADING_START' });
 
     try {
+      // Step 1: Upload the document immediately
       const formData = new FormData();
       formData.append('file', file);
 
@@ -75,34 +73,64 @@ function DocumentPanelContent() {
 
       const data = await response.json();
       
+      // Step 2: Set document data immediately for display
       setDocumentData({
         id: data.document.id,
         fileName: data.document.fileName,
         fileType: data.document.fileType,
         textContent: data.document.textContent,
         originalUrl: data.document.originalUrl,
-        stixBundle: data.document.stixBundle,
       });
 
-      // Notify DocHistory that a new document has been uploaded
+      // Step 3: Notify DocHistory that a new document has been uploaded
       dispatch({ type: 'DOCUMENT_UPLOADED' });
       
-      // Add a system message
+      // Step 4: Add a system message
       setMessages([
         {
           id: Date.now().toString(),
-          content: `Document "${data.document.fileName}" has been uploaded successfully. You can now ask questions about it.`,
+          content: `Document "${data.document.fileName}" has been uploaded successfully. STIX extraction is now in progress.`,
           sender: 'system',
           timestamp: new Date()
         }
       ]);
+
+      // Step 5: Set loading state for STIX extraction
+      dispatch({ type: 'STIX_LOADING_START' });
+
+      // Step 6: Trigger the async STIX extraction in the background
+      const extractionResponse = await fetch('/api/documents/extract', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          documentId: data.document.id,
+          textContent: data.textContent,
+        }),
+      });
+      
+      if (extractionResponse.ok) {
+        console.log('STIX extraction started successfully');
+      } else {
+        console.error('Failed to start STIX extraction');
+      }
+
+      // Step 7: Select the document immediately
+      dispatch({ 
+        type: 'SELECT_DOCUMENT', 
+        payload: { id: data.document.id } 
+      });
+      
+      // The STIX loading state will be updated when the document is loaded with
+      // the latest STIX data via the loadDocument function
+      
     } catch (error) {
       console.error('Error uploading document:', error);
       setUploadError(error instanceof Error ? error.message : 'Failed to upload document');
+      dispatch({ type: 'STIX_LOADING_COMPLETE' });
     } finally {
       setIsUploading(false);
-      // Signal that STIX loading is complete
-      dispatch({ type: 'STIX_LOADING_COMPLETE' });
     }
   };
 
@@ -443,18 +471,54 @@ function DocumentViewer({ file, documentData }: DocumentViewerProps) {
         <div className={styles.textViewer}>
           <pre className={styles.textContent}>{documentData.textContent}</pre>
         </div>
+      ) : documentData?.fileName ? (
+        // Error message for documents that failed to process properly
+        <div className={styles.errorDocument}>
+          <div className={styles.errorIcon}>
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              width="64" 
+              height="64" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <h3>Document Processing Error</h3>
+          <p>We encountered an error while processing the document "{documentData.fileName}".</p>
+          <p>The STIX extraction could not be completed successfully. Please try again with a different document or format.</p>
+          <p>If the problem persists, please check that your document contains valid threat intelligence data in a format that can be processed.</p>
+        </div>
       ) : (
-        // Default placeholder content - same as in the original implementation
-        <div className={styles.dummyDocument}>
-          <h3>Sample Document View</h3>
-          <p>The document would be processed to extract STIX objects, and those objects would be highlighted in this view.</p>
-          <p>For example, this document contains references to:</p>
-          <ul>
-            <li><span className={`${styles.entityHighlight} ${styles.entityMalware}`}>Malware: TrickBot</span></li>
-            <li><span className={`${styles.entityHighlight} ${styles.entityThreatActor}`}>Threat Actor: Wizard Spider</span></li>
-            <li><span className={`${styles.entityHighlight} ${styles.entityAttackPattern}`}>Attack Pattern: Phishing</span></li>
-          </ul>
-          <p>These objects have been added to the STIX bundle in the right sidebar.</p>
+        // Default placeholder content when everything else fails
+        <div className={styles.errorDocument}>
+          <div className={styles.errorIcon}>
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              width="64" 
+              height="64" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <h3>Document Processing Error</h3>
+          <p>We encountered an error while processing your document.</p>
+          <p>The STIX extraction could not be completed successfully. Please try again with a different document or format.</p>
         </div>
       )}
     </div>

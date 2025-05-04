@@ -2,6 +2,6 @@
 import prisma from "../../lib/prisma";
 
 export function printPrismaModels() {
-  console.log("Available Prisma models:");
-  console.log(Object.keys(prisma));
+  /* console.log("Available Prisma models:");
+  console.log(Object.keys(prisma)); */
 }

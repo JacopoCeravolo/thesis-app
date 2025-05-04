@@ -5,6 +5,7 @@ import { createContext, useContext, useReducer, ReactNode, Dispatch } from 'reac
 // Define document action types
 export type DocumentAction = 
   | { type: 'LOAD_DOCUMENT'; payload: { id: string } }
+  | { type: 'SELECT_DOCUMENT'; payload: { id: string } }
   | { type: 'DOCUMENT_UPLOADED' }
   | { type: 'STIX_LOADING_START' }
   | { type: 'STIX_LOADING_COMPLETE' }
@@ -31,6 +32,13 @@ function documentReducer(state: DocumentState, action: DocumentAction): Document
         ...state,
         selectedDocumentId: action.payload.id,
         lastAction: 'LOAD_DOCUMENT',
+        lastUpdated: Date.now()
+      }
+    case 'SELECT_DOCUMENT':
+      return {
+        ...state,
+        selectedDocumentId: action.payload.id,
+        lastAction: 'SELECT_DOCUMENT',
         lastUpdated: Date.now()
       }
     case 'DOCUMENT_UPLOADED':

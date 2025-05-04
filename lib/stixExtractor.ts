@@ -95,6 +95,7 @@ export async function uploadStixBundle(
     {
       contentType: 'application/json',
       access: 'public',
+      allowOverwrite: true,
     }
   );
 

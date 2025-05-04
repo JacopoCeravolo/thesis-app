@@ -74,7 +74,7 @@ export function StixInspector() {
   const [searchText, setSearchText] = useState("");
   const [activeViewTab, setActiveViewTab] = useState("json");
   const [stixBundle, setStixBundle] = useState<STIXBundle | null>(null);
-  const { state } = useDocument();
+  const { state, dispatch } = useDocument();
 
   // Fetch STIX bundle when document is selected
   useEffect(() => {
@@ -90,23 +90,60 @@ export function StixInspector() {
           }
 
           const data = await response.json();
-
-          if (data.document.stixBundle) {
-            setStixBundle(data.document.stixBundle);
+          
+          if (data.document.stixBundleUrl) {
+            // If document has a STIX bundle URL, fetch the bundle
+            try {
+              const bundleResponse = await fetch(data.document.stixBundleUrl);
+              
+              if (bundleResponse.ok) {
+                const bundleData = await bundleResponse.json();
+                setStixBundle(bundleData);
+                // STIX loading is complete
+                dispatch({ type: 'STIX_LOADING_COMPLETE' });
+              } else {
+                console.error("Failed to fetch STIX bundle from URL");
+                // Don't set mock data here - keep showing loading state
+              }
+            } catch (bundleError) {
+              console.error("Error fetching STIX bundle from URL:", bundleError);
+              // Don't set mock data here - keep showing loading state
+            }
+          } else {
+            // If document doesn't have a STIX bundle yet, it might still be processing
+            console.log("Document doesn't have STIX bundle URL yet");
+            
+            // Note: we don't complete loading here as the extraction might still be in progress
+            // The DocumentPanel component will handle the STIX_LOADING_COMPLETE when extraction is done
           }
         } catch (error) {
-          console.error("Error fetching STIX bundle:", error);
-          // Use mock data on error
-          setStixBundle(mockStixBundle);
+          console.error("Error fetching document data:", error);
+          dispatch({ type: 'STIX_LOADING_COMPLETE' });
         }
       } else {
-        // Use mock data when no document is selected
-        setStixBundle(mockStixBundle);
+        // No document selected, clear the bundle and ensure loading is complete
+        setStixBundle(null);
+        dispatch({ type: 'STIX_LOADING_COMPLETE' });
       }
     };
 
     fetchStixBundle();
-  }, [state.selectedDocumentId]);
+    
+    // Set up polling to check for STIX bundle completion
+    let pollInterval: NodeJS.Timeout | null = null;
+    
+    // Only poll if we have a selected document and STIX is loading
+    if (state.selectedDocumentId && state.isStixLoading) {
+      pollInterval = setInterval(() => {
+        fetchStixBundle();
+      }, 5000); // Check every 5 seconds
+    }
+    
+    // Clean up interval when component unmounts or dependencies change
+    return () => {
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [state.selectedDocumentId, state.isStixLoading, dispatch]);
 
   // Filter bundle based on selected node
   const getFilteredBundle = () => {
@@ -207,20 +244,24 @@ export function StixInspector() {
   // Current bundle to display based on filters and selection
   const currentBundle = selectedNodeId ? getFilteredBundle() : filteredBundle;
 
+  // Add empty placeholder when loading
+  if (state.isStixLoading) {
+    return (
+      <div className={styles.stixLoading}>
+        <Loader text="Extracting STIX data from document..." size="large" />
+        <p className={styles.loadingText}>
+          This may take up to 30 seconds depending on the document size.
+        </p>
+      </div>
+    );
+  }
+  
+  // Add empty placeholder when no document is selected
   if (!state.selectedDocumentId) {
     return (
       <div className={styles.emptyState}>
         <h3>STIX Inspector</h3>
         <p>Select a document to view extracted STIX entities</p>
-      </div>
-    );
-  }
-
-  if (state.isStixLoading) {
-    return (
-      <div className={styles.loadingState}>
-        <h3>STIX Inspector</h3>
-        <Loader text="Extracting STIX entities..." />
       </div>
     );
   }

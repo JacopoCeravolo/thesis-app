@@ -1,31 +1,36 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { v4 as uuidv4 } from 'uuid';
 import { put } from '@vercel/blob';
 import { STIXBundle, STIXObject } from './stixExtractor';
 import fs from 'fs';
 import path from 'path';
 
+// DeepSeek model configuration
+const DEEPSEEK_API_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
+const DEEPSEEK_MODEL = 'deepseek/deepseek-chat:free';
+
 /**
- * Extract STIX objects from document content using Gemini API
+ * Extract STIX objects from document content using DeepSeek API
  */
-export async function extractStixWithGemini(
+export async function extractStixWithDeepseek(
   documentContent: string,
   documentName: string,
 ): Promise<STIXBundle> {
   console.log(`[STIX Extraction] Starting extraction for document: ${documentName}`);
   console.log(`[STIX Extraction] Document content length: ${documentContent.length} characters`);
   
-  // Initialize the Gemini API client
-  const apiKey = process.env.GEMINI_API_KEY;
+  // Initialize the DeepSeek API headers
+  const apiKey = process.env.DEEPSEEK_API_KEY || process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    console.error('[STIX Extraction] GEMINI_API_KEY is not set in environment variables');
-    throw new Error('GEMINI_API_KEY is not set in environment variables');
+    console.error('[STIX Extraction] DEEPSEEK_API_KEY is not set in environment variables');
+    throw new Error('DEEPSEEK_API_KEY is not set in environment variables');
   }
-  console.log('[STIX Extraction] Successfully retrieved Gemini API key');
+  console.log('[STIX Extraction] Successfully retrieved DeepSeek API key');
 
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-  console.log('[STIX Extraction] Initialized Gemini model: gemini-2.0-flash');
+  const headers = {
+    'Authorization': `Bearer ${apiKey}`,
+    'Content-Type': 'application/json'
+  };
+  console.log('[STIX Extraction] Initialized DeepSeek API headers');
 
   try {
     // Read the extraction prompt
@@ -43,22 +48,53 @@ export async function extractStixWithGemini(
     
     // Prepare content for extraction
     const content = `Text:\n${documentContent}`;
-    console.log(`[STIX Extraction] Prepared content for Gemini (total length: ${content.length} characters)`);
+    console.log(`[STIX Extraction] Prepared content for DeepSeek (total length: ${content.length} characters)`);
     
-    // Call Gemini API
-    console.log('[STIX Extraction] Calling Gemini API...');
+    // Prepare request payload
+    const requestData = {
+      model: DEEPSEEK_MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: content }
+      ],
+      temperature: 0.1,
+      max_tokens: 4000
+    };
+    
+    // Call DeepSeek API
+    console.log('[STIX Extraction] Calling DeepSeek API...');
     const startTime = Date.now();
     
-    const response = await model.generateContent([systemPrompt, content]);
-    const endTime = Date.now();
-    console.log(`[STIX Extraction] Gemini API call completed in ${endTime - startTime}ms`);
+    const response = await fetch(DEEPSEEK_API_ENDPOINT, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(requestData),
+    });
     
-    // Log the raw response
-    console.log('[STIX Extraction] Raw Gemini response:', JSON.stringify(response));
+    const endTime = Date.now();
+    console.log(`[STIX Extraction] DeepSeek API call completed in ${endTime - startTime}ms`);
+    
+    if (!response.ok) {
+      console.error(`[STIX Extraction] DeepSeek API responded with status: ${response.status}`);
+      const errorText = await response.text();
+      console.error(`[STIX Extraction] Error response: ${errorText}`);
+      throw new Error(`DeepSeek API error: ${response.status} ${response.statusText}`);
+    }
+    
+    // Extract response data
+    const responseData = await response.json();
+    console.log('[STIX Extraction] Raw DeepSeek response:', JSON.stringify(responseData));
     
     // Extract text from response
-    const responseText = response.response.text();
-    console.log(`[STIX Extraction] Response text length: ${responseText.length} characters`);
+    const responseText = responseData.choices[0].message.content;
+    console.log(`[STIX Extraction] Response text length: ${responseText?.length || 0} characters`);
+    
+    // Check for empty response
+    if (!responseText || responseText.trim() === '') {
+      console.error('[STIX Extraction] DeepSeek API returned an empty response');
+      throw new Error('DeepSeek API returned an empty response');
+    }
+    
     console.log('[STIX Extraction] Response text preview:', responseText.substring(0, 500) + (responseText.length > 500 ? '...' : ''));
     
     // Clean up and parse the JSON response
@@ -198,7 +234,7 @@ export async function extractStixWithGemini(
     console.log('[STIX Extraction] STIX extraction completed successfully');
     return bundle;
   } catch (error) {
-    console.error('[STIX Extraction] Error during STIX extraction with Gemini:', error);
+    console.error('[STIX Extraction] Error during STIX extraction with DeepSeek:', error);
     // Return an empty bundle if extraction fails
     return {
       type: 'bundle',
