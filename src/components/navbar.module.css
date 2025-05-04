@@ -4,6 +4,7 @@
   top: 0;
   z-index: 10;
   background-color: var(--accent-color);
+  width: 100%;
 }
 
 .container {
@@ -11,8 +12,6 @@
   height: 4rem;
   align-items: center;
   padding: 0 1.5rem;
-  max-width: 1200px;
-  margin: 0 auto;
   width: 100%;
 }
 
@@ -90,4 +89,69 @@
 
 .registerButton:hover {
   background-color: var(--primary-dark);
+}
+
+.userMenu {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.userMenu:hover .userMenuDropdown {
+  display: block;
+}
+
+.userMenuDropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.5rem;
+  width: 14rem;
+  background-color: var(--accent-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 0.5rem;
+  z-index: 50;
+}
+
+.userInfo {
+  padding: 0.5rem;
+}
+
+.userName {
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--text-color);
+  margin-bottom: 0.25rem;
+}
+
+.userEmail {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.userMenuDivider {
+  height: 1px;
+  background-color: var(--border-color);
+  margin: 0.5rem 0;
+}
+
+.userMenuButton {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-color);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.userMenuButton:hover {
+  background-color: var(--accent-hover);
 }

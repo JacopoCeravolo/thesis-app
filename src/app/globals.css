@@ -1,4 +1,21 @@
 :root {
+  --foreground-rgb: 0, 0, 0;
+  --background-rgb: 255, 255, 255;
+  --border-color: #e2e8f0;
+  --primary-color: #3b82f6;
+  --primary-light: #93c5fd;
+  --primary-dark: #1d4ed8;
+  --accent-color: #f8fafc;
+  --accent-hover: #e2e8f0;
+  --text-color: #0f172a;
+  --text-secondary: #64748b;
+  --card-bg: #f1f5f9;
+  --destructive: #ef4444;
+  --muted: #cbd5e1;
+  --radius: 0.5rem;
+}
+
+html[data-theme='dark'] {
   --foreground-rgb: 255, 255, 255;
   --background-rgb: 15, 23, 42;
   --border-color: #334155;
@@ -12,11 +29,10 @@
   --card-bg: #1e293b;
   --destructive: #ef4444;
   --muted: #334155;
-  --radius: 0.5rem;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  html:not([data-theme]) {
     --foreground-rgb: 255, 255, 255;
     --background-rgb: 15, 23, 42;
     --border-color: #334155;

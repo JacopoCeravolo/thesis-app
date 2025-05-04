@@ -4,30 +4,43 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import styles from '../login/auth.module.css'
+import { ClientAuthProvider, useAuth } from '@/contexts/AuthContext'
 
-export default function RegisterPage() {
+function RegisterPageContent() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   const router = useRouter()
+  const { signUp } = useAuth()
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (password !== confirmPassword) {
-      alert('Passwords do not match')
+      setError('Passwords do not match')
       return
     }
     
     setLoading(true)
+    setError('')
     
-    // Simulate registration for now
-    setTimeout(() => {
+    try {
+      const success = await signUp({ name, email, password })
+      
+      if (success) {
+        router.push('/')
+      } else {
+        setError('Registration failed. Please try again.')
+      }
+    } catch (err) {
+      setError('An error occurred. Please try again.')
+      console.error(err)
+    } finally {
       setLoading(false)
-      router.push('/')
-    }, 1000)
+    }
   }
   
   return (
@@ -37,6 +50,12 @@ export default function RegisterPage() {
           <h1 className={styles.title}>STIX Analyzer</h1>
           <p className={styles.subtitle}>Create your account</p>
         </div>
+        
+        {error && (
+          <div className={styles.errorMessage}>
+            {error}
+          </div>
+        )}
         
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.formGroup}>
@@ -110,5 +129,13 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function RegisterPage() {
+  return (
+    <ClientAuthProvider>
+      <RegisterPageContent />
+    </ClientAuthProvider>
   )
 }

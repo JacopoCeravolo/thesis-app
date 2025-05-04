@@ -4,22 +4,35 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import styles from './auth.module.css'
+import { ClientAuthProvider, useAuth } from '@/contexts/AuthContext'
 
-export default function LoginPage() {
+function LoginPageContent() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   const router = useRouter()
+  const { signIn } = useAuth()
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setError('')
     
-    // Simulate login for now
-    setTimeout(() => {
+    try {
+      const success = await signIn({ email, password })
+      
+      if (success) {
+        router.push('/')
+      } else {
+        setError('Invalid email or password')
+      }
+    } catch (err) {
+      setError('An error occurred. Please try again.')
+      console.error(err)
+    } finally {
       setLoading(false)
-      router.push('/')
-    }, 1000)
+    }
   }
   
   return (
@@ -29,6 +42,12 @@ export default function LoginPage() {
           <h1 className={styles.title}>STIX Analyzer</h1>
           <p className={styles.subtitle}>Sign in to your account</p>
         </div>
+        
+        {error && (
+          <div className={styles.errorMessage}>
+            {error}
+          </div>
+        )}
         
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.formGroup}>
@@ -81,5 +100,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <ClientAuthProvider>
+      <LoginPageContent />
+    </ClientAuthProvider>
   )
 }

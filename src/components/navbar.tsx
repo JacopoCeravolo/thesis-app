@@ -5,16 +5,55 @@ import styles from './navbar.module.css'
 import { Button } from './ui/button'
 import { Avatar, AvatarFallback } from './ui/avatar'
 import { usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { ClientAuthProvider, useAuth } from '@/contexts/AuthContext'
 
-export function Navbar() {
+function NavbarContent() {
   const pathname = usePathname()
   const isAuthPage = pathname === '/login' || pathname === '/register'
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark')
+  const { user, logout } = useAuth()
+  
+  // Initialize theme based on system preference and saved preference
+  useEffect(() => {
+    // Check for stored theme preference
+    const storedTheme = localStorage.getItem('theme')
+    
+    if (storedTheme) {
+      setTheme(storedTheme as 'light' | 'dark')
+      document.documentElement.setAttribute('data-theme', storedTheme)
+    } else {
+      // Use system preference as fallback
+      const systemPreference = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+      setTheme(systemPreference)
+      document.documentElement.setAttribute('data-theme', systemPreference)
+    }
+  }, [])
+  
+  // Toggle theme function
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark'
+    setTheme(newTheme)
+    document.documentElement.setAttribute('data-theme', newTheme)
+    localStorage.setItem('theme', newTheme)
+  }
   
   // Don't show the navbar on login/register pages
   if (isAuthPage) return null
   
-  // Simulating not logged in state (would come from auth context in a real app)
-  const isLoggedIn = false
+  const handleLogout = async () => {
+    await logout();
+  };
+  
+  // Get user initials for avatar
+  const getUserInitials = () => {
+    if (!user?.name) return 'U';
+    return user.name.split(' ')
+      .map((name: string) => name[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  };
   
   return (
     <nav className={styles.navbar}>
@@ -38,7 +77,48 @@ export function Navbar() {
           <span>STIX Analyzer</span>
         </Link>
         <div className={styles.actions}>
-          {isLoggedIn ? (
+          <button onClick={toggleTheme} className={styles.iconButton} aria-label="Toggle theme">
+            {theme === 'dark' ? (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--text-color)"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-5 w-5"
+              >
+                <circle cx="12" cy="12" r="4"></circle>
+                <path d="M12 2v2"></path>
+                <path d="M12 20v2"></path>
+                <path d="M4.93 4.93l1.41 1.41"></path>
+                <path d="M17.66 17.66l1.41 1.41"></path>
+                <path d="M2 12h2"></path>
+                <path d="M20 12h2"></path>
+                <path d="M6.34 17.66l-1.41 1.41"></path>
+                <path d="M19.07 4.93l-1.41 1.41"></path>
+              </svg>
+            ) : (
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width="24" 
+                height="24" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="var(--text-color)" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+                className="h-5 w-5"
+              >
+                <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+              </svg>
+            )}
+          </button>
+          {user ? (
             <>
               <Button variant="ghost" size="icon" className={styles.iconButton}>
                 <svg
@@ -58,9 +138,24 @@ export function Navbar() {
                 </svg>
                 <span className="sr-only">Settings</span>
               </Button>
-              <Avatar>
-                <AvatarFallback>U</AvatarFallback>
-              </Avatar>
+              <div className={styles.userMenu}>
+                <Avatar>
+                  <AvatarFallback>{getUserInitials()}</AvatarFallback>
+                </Avatar>
+                <div className={styles.userMenuDropdown}>
+                  <div className={styles.userInfo}>
+                    <p className={styles.userName}>{user.name}</p>
+                    <p className={styles.userEmail}>{user.email}</p>
+                  </div>
+                  <div className={styles.userMenuDivider}></div>
+                  <button 
+                    className={styles.userMenuButton} 
+                    onClick={handleLogout}
+                  >
+                    Sign out
+                  </button>
+                </div>
+              </div>
             </>
           ) : (
             <>
@@ -77,5 +172,13 @@ export function Navbar() {
         </div>
       </div>
     </nav>
+  )
+}
+
+export function Navbar() {
+  return (
+    <ClientAuthProvider>
+      <NavbarContent />
+    </ClientAuthProvider>
   )
 }

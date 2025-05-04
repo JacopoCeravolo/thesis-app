@@ -1,20 +1,58 @@
 "use client"
 
+import { useState, useEffect } from 'react'
 import { Input } from './ui/input'
 import { ScrollArea } from './ui/scroll-area'
 import { Separator } from './ui/separator'
 import styles from './document-history.module.css'
+import { useSession } from 'next-auth/react'
+import { ClientAuthProvider } from '@/contexts/AuthContext'
 
-// Mock data for document history
-const mockDocuments = [
-  { id: '1', name: 'Threat_Report_2024.pdf', timestamp: '2024-04-29T14:30:00' },
-  { id: '2', name: 'Malware_Analysis.docx', timestamp: '2024-04-28T10:15:00' },
-  { id: '3', name: 'Network_Intrusion.txt', timestamp: '2024-04-27T16:45:00' },
-  { id: '4', name: 'APT_Campaign.pdf', timestamp: '2024-04-25T09:20:00' },
-  { id: '5', name: 'Incident_Response.docx', timestamp: '2024-04-23T11:10:00' },
-]
+interface Document {
+  id: string
+  fileName: string
+  uploadedAt: string
+  fileType: string
+}
 
-export function DocumentHistory() {
+function DocumentHistoryContent() {
+  const [documents, setDocuments] = useState<Document[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const { data: session } = useSession()
+
+  // Fetch documents from the API
+  useEffect(() => {
+    const fetchDocuments = async () => {
+      if (!session?.user) return;
+      
+      try {
+        setIsLoading(true);
+        const response = await fetch('/api/documents');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch documents');
+        }
+        
+        const data = await response.json();
+        setDocuments(data.documents);
+      } catch (error) {
+        console.error('Error fetching documents:', error);
+        setError(error instanceof Error ? error.message : 'Failed to fetch documents');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchDocuments();
+  }, [session]);
+
+  // Filter documents based on search term
+  const filteredDocuments = documents.filter(doc => 
+    doc.fileName.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -22,31 +60,59 @@ export function DocumentHistory() {
         <Input 
           type="text"
           placeholder="Search documents..." 
-          className={styles.searchInput} 
+          className={styles.searchInput}
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
       <Separator className={styles.separator} />
       <ScrollArea className={styles.scrollArea}>
-        <div className={styles.listContainer}>
-          {mockDocuments.map(doc => (
-            <DocumentListItem 
-              key={doc.id}
-              name={doc.name}
-              timestamp={doc.timestamp}
-            />
-          ))}
-        </div>
+        {isLoading ? (
+          <div className={styles.loading}>Loading documents...</div>
+        ) : error ? (
+          <div className={styles.error}>{error}</div>
+        ) : documents.length === 0 ? (
+          <div className={styles.empty}>
+            No documents found. Upload a document to get started.
+          </div>
+        ) : filteredDocuments.length === 0 ? (
+          <div className={styles.empty}>
+            No documents match your search.
+          </div>
+        ) : (
+          <div className={styles.listContainer}>
+            {filteredDocuments.map(doc => (
+              <DocumentListItem 
+                key={doc.id}
+                id={doc.id}
+                name={doc.fileName}
+                timestamp={doc.uploadedAt}
+                fileType={doc.fileType}
+              />
+            ))}
+          </div>
+        )}
       </ScrollArea>
     </div>
   )
 }
 
-interface DocumentListItemProps {
-  name: string
-  timestamp: string
+export function DocumentHistory() {
+  return (
+    <ClientAuthProvider>
+      <DocumentHistoryContent />
+    </ClientAuthProvider>
+  )
 }
 
-function DocumentListItem({ name, timestamp }: DocumentListItemProps) {
+interface DocumentListItemProps {
+  id: string
+  name: string
+  timestamp: string
+  fileType: string
+}
+
+function DocumentListItem({ id, name, timestamp, fileType }: DocumentListItemProps) {
   // Format the timestamp to a more readable format
   const formattedDate = new Date(timestamp).toLocaleDateString('en-US', {
     month: 'short',
@@ -54,10 +120,21 @@ function DocumentListItem({ name, timestamp }: DocumentListItemProps) {
     year: 'numeric',
   })
 
+  const handleDocumentClick = () => {
+    // This will be implemented to load a document in the DocumentPanel
+    console.log(`Loading document: ${id}`);
+    
+    // This is where we'd dispatch an event or use context to load the document
+    // For now, we're just logging to console
+    
+    // TODO: Implement document loading
+    // Example: documentDispatch({ type: 'LOAD_DOCUMENT', payload: { id } });
+  };
+
   return (
     <button 
       className={styles.listItem}
-      onClick={() => console.log(`Loading document: ${name}`)}
+      onClick={handleDocumentClick}
     >
       <div className={styles.itemHeader}>
         <DocumentIcon className={styles.itemIcon} />
