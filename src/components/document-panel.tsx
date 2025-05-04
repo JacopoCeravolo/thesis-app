@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Button } from './ui/button'
 import { ScrollArea } from './ui/scroll-area'
 import { Textarea } from './ui/textarea'
@@ -10,6 +10,10 @@ import styles from './document-panel.module.css'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { ClientAuthProvider } from '@/contexts/AuthContext'
+// Import PDF viewer components
+import { Worker, Viewer } from '@react-pdf-viewer/core'
+// Import PDF viewer styles
+import '@react-pdf-viewer/core/lib/styles/index.css'
 
 interface Message {
   id: string
@@ -317,32 +321,67 @@ interface DocumentViewerProps {
 }
 
 function DocumentViewer({ file, documentData }: DocumentViewerProps) {
-  const fileName = file?.name || documentData?.fileName || 'Unknown';
-  const fileType = file?.type || documentData?.fileType || '';
-  const textContent = documentData?.textContent || '';
-  
+  // Create a blob URL from the file if it exists
+  const [fileUrl, setFileUrl] = useState<string | null>(null)
+
+  // Generate blob URL when file changes
+  useEffect(() => {
+    if (file) {
+      const url = URL.createObjectURL(file)
+      setFileUrl(url)
+      return () => URL.revokeObjectURL(url)
+    }
+  }, [file])
+
+  // Determine the file type
+  const fileType = file?.type || documentData?.fileType || ''
+  const isPdf = fileType.includes('pdf')
+  const isText = fileType.includes('text') || fileType.includes('txt')
+
+  if (!file && !documentData) {
+    return (
+      <div className={styles.emptyDocumentViewer}>
+        <p>No document loaded. Upload or select a document to view.</p>
+      </div>
+    )
+  }
+
   return (
     <div className={styles.documentViewer}>
-      <div className={styles.documentContent}>
-        <h2 className={styles.documentTitle}>{fileName}</h2>
-        <div className={styles.prose}>
-          {textContent ? (
-            <pre className={styles.documentText}>{textContent}</pre>
-          ) : (
-            <>
-              <p>This is the document content. In a real application, this would show the parsed content of your uploaded {fileName.split('.').pop()} file.</p>
-              <p>The document would be processed to extract STIX objects, and those objects would be highlighted in this view.</p>
-              <p>For example, this document contains references to:</p>
-              <ul>
-                <li><span className={`${styles.entityHighlight} ${styles.entityMalware}`}>Malware: TrickBot</span></li>
-                <li><span className={`${styles.entityHighlight} ${styles.entityThreatActor}`}>Threat Actor: Wizard Spider</span></li>
-                <li><span className={`${styles.entityHighlight} ${styles.entityAttackPattern}`}>Attack Pattern: Phishing</span></li>
-              </ul>
-              <p>These objects have been added to the STIX bundle in the right sidebar.</p>
-            </>
-          )}
+      {isPdf ? (
+        <div className={styles.pdfViewer}>
+          <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.4.120/build/pdf.worker.min.js">
+            <div style={{ height: '100%', width: '100%' }}>
+              {fileUrl ? (
+                <Viewer fileUrl={fileUrl} />
+              ) : documentData?.id ? (
+                // For PDF documents loaded from database
+                <Viewer fileUrl={`/api/documents/${documentData.id}/file`} />
+              ) : (
+                <div>Unable to load PDF</div>
+              )}
+            </div>
+          </Worker>
         </div>
-      </div>
+      ) : isText && documentData?.textContent ? (
+        // Text viewer for text documents
+        <div className={styles.textViewer}>
+          <pre className={styles.textContent}>{documentData.textContent}</pre>
+        </div>
+      ) : (
+        // Default placeholder content - same as in the original implementation
+        <div className={styles.dummyDocument}>
+          <h3>Sample Document View</h3>
+          <p>The document would be processed to extract STIX objects, and those objects would be highlighted in this view.</p>
+          <p>For example, this document contains references to:</p>
+          <ul>
+            <li><span className={`${styles.entityHighlight} ${styles.entityMalware}`}>Malware: TrickBot</span></li>
+            <li><span className={`${styles.entityHighlight} ${styles.entityThreatActor}`}>Threat Actor: Wizard Spider</span></li>
+            <li><span className={`${styles.entityHighlight} ${styles.entityAttackPattern}`}>Attack Pattern: Phishing</span></li>
+          </ul>
+          <p>These objects have been added to the STIX bundle in the right sidebar.</p>
+        </div>
+      )}
     </div>
   )
 }
@@ -447,7 +486,7 @@ function UploadIcon(props: React.SVGProps<SVGSVGElement>) {
     >
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
       <polyline points="17 8 12 3 7 8" />
-      <line x1="12" y1="3" x2="12" y2="15" />
+      <line x1="12" x2="12" y1="3" y2="15" />
     </svg>
   )
 }
