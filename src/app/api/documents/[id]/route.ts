@@ -3,6 +3,19 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "../../auth/[...nextauth]/options";
 import prisma from "../../../../../lib/prisma";
 
+// Define document type to match the database schema
+interface Document {
+  id: string;
+  fileName: string;
+  originalUrl: string;
+  textUrl: string | null;
+  fileType: string;
+  fileSize: number;
+  uploadedAt: Date;
+  userId: string;
+  stixBundleUrl: string | null;
+}
+
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
@@ -22,13 +35,12 @@ export async function GET(
     const documentId = params.id;
     
     // Find the document and ensure it belongs to the current user
-    // @ts-expect-error - We know the document model exists
     const document = await prisma.document.findFirst({
       where: {
         id: documentId,
         userId,
       },
-    });
+    }) as Document | null;
     
     if (!document) {
       return NextResponse.json(
@@ -50,10 +62,24 @@ export async function GET(
       }
     }
     
+    // Get the STIX bundle if available
+    let stixBundle = null;
+    if (document.stixBundleUrl) {
+      try {
+        const stixResponse = await fetch(document.stixBundleUrl);
+        if (stixResponse.ok) {
+          stixBundle = await stixResponse.json();
+        }
+      } catch (error) {
+        console.error("Error fetching STIX bundle:", error);
+      }
+    }
+    
     return NextResponse.json({
       document: {
         ...document,
         textContent,
+        stixBundle,
       },
     });
   } catch (error) {
@@ -84,13 +110,12 @@ export async function DELETE(
     const documentId = params.id;
     
     // Find the document and ensure it belongs to the current user
-    // @ts-expect-error - We know the document model exists
     const document = await prisma.document.findFirst({
       where: {
         id: documentId,
         userId,
       },
-    });
+    }) as Document | null;
     
     if (!document) {
       return NextResponse.json(
@@ -100,7 +125,6 @@ export async function DELETE(
     }
     
     // Delete document from database
-    // @ts-expect-error - We know the document model exists
     await prisma.document.delete({
       where: {
         id: documentId,

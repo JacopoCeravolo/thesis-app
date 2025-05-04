@@ -144,3 +144,30 @@
   padding: 2rem;
   font-size: 0.875rem;
 }
+
+.entityLink {
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.entityLink:hover {
+  text-decoration: underline;
+}
+
+.emptyState, .loadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  height: 100%;
+  text-align: center;
+  color: var(--muted-foreground);
+  background-color: var(--background);
+  border-radius: 0.5rem;
+}
+
+.emptyState h3, .loadingState h3 {
+  margin-bottom: 1rem;
+  color: var(--foreground);
+}

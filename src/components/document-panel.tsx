@@ -15,6 +15,7 @@ import { Worker, Viewer } from '@react-pdf-viewer/core'
 // Import PDF viewer styles
 import '@react-pdf-viewer/core/lib/styles/index.css'
 import { useDocument } from '@/contexts/DocumentContext'
+import { Loader } from './ui/loader'
 
 interface Message {
   id: string
@@ -28,6 +29,8 @@ interface DocumentData {
   fileName: string
   fileType: string
   textContent?: string
+  originalUrl?: string
+  stixBundle?: any
 }
 
 function DocumentPanelContent() {
@@ -42,17 +45,19 @@ function DocumentPanelContent() {
   const router = useRouter()
   const { state, dispatch } = useDocument()
 
-  // Handle file upload
-  const handleFileUpload = async (file: File) => {
-    if (!session?.user) {
-      // Redirect to login if not authenticated
-      router.push('/login');
+  // Handle document upload
+  const handleUpload = async () => {
+    if (!file || !session?.user) {
+      if (!file) setUploadError('Please select a file to upload');
+      if (!session?.user) router.push('/login');
       return;
     }
 
-    setFile(file);
     setIsUploading(true);
     setUploadError(null);
+    
+    // Signal that STIX loading has started
+    dispatch({ type: 'STIX_LOADING_START' });
 
     try {
       const formData = new FormData();
@@ -64,40 +69,40 @@ function DocumentPanelContent() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to upload document');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to upload document');
       }
 
       const data = await response.json();
-
+      
       setDocumentData({
         id: data.document.id,
         fileName: data.document.fileName,
         fileType: data.document.fileType,
-        textContent: '', // Will be populated when viewing
+        textContent: data.document.textContent,
+        originalUrl: data.document.originalUrl,
+        stixBundle: data.document.stixBundle,
       });
 
-      // Add a system message to acknowledge the upload
+      // Notify DocHistory that a new document has been uploaded
+      dispatch({ type: 'DOCUMENT_UPLOADED' });
+      
+      // Add a system message
       setMessages([
         {
           id: Date.now().toString(),
-          content: `File "${file.name}" has been uploaded and processed. You can now ask questions about it.`,
+          content: `Document "${data.document.fileName}" has been uploaded successfully. You can now ask questions about it.`,
           sender: 'system',
           timestamp: new Date()
         }
       ]);
-      
-      // Dispatch document uploaded action to refresh document history
-      dispatch({ type: 'DOCUMENT_UPLOADED' });
-      
-      // Refresh the document list
-      router.refresh();
     } catch (error) {
       console.error('Error uploading document:', error);
       setUploadError(error instanceof Error ? error.message : 'Failed to upload document');
-      setFile(null);
     } finally {
       setIsUploading(false);
+      // Signal that STIX loading is complete
+      dispatch({ type: 'STIX_LOADING_COMPLETE' });
     }
   };
 
@@ -109,6 +114,9 @@ function DocumentPanelContent() {
     }
 
     try {
+      // Signal that STIX loading has started
+      dispatch({ type: 'STIX_LOADING_START' });
+      
       const response = await fetch(`/api/documents/${id}`);
       
       if (!response.ok) {
@@ -123,6 +131,8 @@ function DocumentPanelContent() {
         fileName: data.document.fileName,
         fileType: data.document.fileType,
         textContent: data.document.textContent,
+        originalUrl: data.document.originalUrl,
+        stixBundle: data.document.stixBundle,
       });
       
       // Add a system message
@@ -134,11 +144,16 @@ function DocumentPanelContent() {
           timestamp: new Date()
         }
       ]);
+      
+      // Signal that STIX loading is complete
+      dispatch({ type: 'STIX_LOADING_COMPLETE' });
     } catch (error) {
       console.error('Error loading document:', error);
       setUploadError(error instanceof Error ? error.message : 'Failed to load document');
+      // Make sure to complete loading even on error
+      dispatch({ type: 'STIX_LOADING_COMPLETE' });
     }
-  }, [session, router]);
+  }, [session, router, dispatch]);
 
   // Watch for document selection from history
   useEffect(() => {
@@ -182,7 +197,8 @@ function DocumentPanelContent() {
 
   if (!file && !documentData) {
     return <FileUploader 
-      onFileUpload={handleFileUpload} 
+      onFileSelect={setFile}
+      onUpload={handleUpload}
       isUploading={isUploading}
       error={uploadError}
     />
@@ -250,13 +266,15 @@ export function DocumentPanel() {
 }
 
 interface FileUploaderProps {
-  onFileUpload: (file: File) => void
+  onFileSelect: (file: File) => void
+  onUpload: () => void
   isUploading: boolean
   error: string | null
 }
 
-function FileUploader({ onFileUpload, isUploading, error }: FileUploaderProps) {
+function FileUploader({ onFileSelect, onUpload, isUploading, error }: FileUploaderProps) {
   const [isDragging, setIsDragging] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -272,52 +290,47 @@ function FileUploader({ onFileUpload, isUploading, error }: FileUploaderProps) {
     setIsDragging(false)
     
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      onFileUpload(e.dataTransfer.files[0])
+      const file = e.dataTransfer.files[0]
+      setSelectedFile(file)
+      onFileSelect(file)
     }
   }
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      onFileUpload(e.target.files[0])
+      const file = e.target.files[0]
+      setSelectedFile(file)
+      onFileSelect(file)
     }
   }
 
   return (
-    <div className={styles.uploaderContainer}>
-      <div 
-        className={`${styles.dropzone} ${isDragging ? styles.dropzoneActive : ''}`}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        <div className={styles.iconContainer}>
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            width="24" 
-            height="24" 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="2" 
-            strokeLinecap="round" 
-            strokeLinejoin="round"
-            className={styles.iconPrimary}
-          >
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="17 8 12 3 7 8" />
-            <line x1="12" x2="12" y1="3" y2="15" />
-          </svg>
-        </div>
-        <h3 className={styles.dropzoneTitle}>
-          {isUploading ? 'Uploading...' : 'Upload a document'}
-        </h3>
-        {error && (
-          <div className={styles.error}>{error}</div>
+    <div 
+      className={`${styles.fileUploader} ${isDragging ? styles.dragging : ''}`}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      <div className={styles.uploadContent}>
+        <UploadIcon className={styles.uploadIcon} />
+        <h3>Upload Intelligence Report</h3>
+        {selectedFile ? (
+          <div className={styles.selectedFileInfo}>
+            <p>Selected file: {selectedFile.name}</p>
+            <Button 
+              onClick={onUpload} 
+              disabled={isUploading}
+            >
+              {isUploading ? 'Processing...' : 'Upload Document'}
+            </Button>
+          </div>
+        ) : (
+          <p className={styles.dragText}>
+            Drag and drop your file here, or click to browse
+          </p>
         )}
-        <p className={styles.dropzoneText}>
-          Drag and drop your file here or click to browse
-        </p>
-        <p className={styles.fileFormats}>
+        {error && <p className={styles.errorMessage}>{error}</p>}
+        <p className={styles.supportedFormats}>
           Supported formats: PDF, DOCX, DOC, TXT, JSON
         </p>
         <input
@@ -349,6 +362,7 @@ interface DocumentViewerProps {
 function DocumentViewer({ file, documentData }: DocumentViewerProps) {
   // Create a blob URL from the file if it exists
   const [fileUrl, setFileUrl] = useState<string | null>(null)
+  const { state } = useDocument()
 
   // Generate blob URL when file changes
   useEffect(() => {
@@ -371,6 +385,15 @@ function DocumentViewer({ file, documentData }: DocumentViewerProps) {
       </div>
     )
   }
+  
+  // Show loader while STIX data is being extracted
+  if (state.isStixLoading) {
+    return (
+      <div className={styles.documentViewer}>
+        <Loader text="Analyzing document and extracting STIX entities..." size="large" />
+      </div>
+    )
+  }
 
   return (
     <div className={styles.documentViewer}>
@@ -380,9 +403,8 @@ function DocumentViewer({ file, documentData }: DocumentViewerProps) {
             <div style={{ height: '100%', width: '100%' }}>
               {fileUrl ? (
                 <Viewer fileUrl={fileUrl} />
-              ) : documentData?.id ? (
-                // For PDF documents loaded from database
-                <Viewer fileUrl={`/api/documents/${documentData.id}/file`} />
+              ) : documentData?.originalUrl ? (
+                <Viewer fileUrl={documentData.originalUrl} />
               ) : (
                 <div>Unable to load PDF</div>
               )}

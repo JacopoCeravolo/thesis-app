@@ -1,4 +1,8 @@
 import mammoth from 'mammoth';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
+
+// Specify the worker source path
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@3.4.120/legacy/build/pdf.worker.min.js`;
 
 /**
  * Extract text content from various document types
@@ -11,16 +15,33 @@ export async function extractTextFromDocument(
     // Handle different file types
     if (fileType === 'application/pdf') {
       try {
-        // For PDFs, we'll return a placeholder until we implement a more reliable PDF parser
-        // We could use alternatives like pdf.js-extract or pdfjs-dist in the future
-        return "PDF content extraction temporarily disabled. PDF uploaded successfully but text extraction is in progress.";
+        // Load the PDF file
+        const pdfData = new Uint8Array(file);
+        const loadingTask = pdfjsLib.getDocument({ data: pdfData });
+        const pdf = await loadingTask.promise;
         
-        // The previous implementation was causing initialization errors:
-        // const pdfData = await pdfParse(file);
-        // return pdfData.text || 'No text extracted from PDF';
+        let extractedText = '';
+        
+        // Extract text from each page
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const textItems = textContent.items.map((item: any) => 
+            item.str ? item.str : ''
+          ).join(' ');
+          
+          extractedText += textItems + '\n';
+        }
+        
+        return extractedText || 'No text extracted from PDF';
       } catch (pdfError) {
         console.error('PDF parsing error:', pdfError);
-        return 'Unable to parse PDF content';
+        // Fallback to simple buffer conversion if PDF parsing fails
+        try {
+          return file.toString('utf-8');
+        } catch (e) {
+          return 'Unable to parse PDF content';
+        }
       }
     } else if (
       fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||

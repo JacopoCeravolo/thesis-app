@@ -6,12 +6,15 @@ import { createContext, useContext, useReducer, ReactNode, Dispatch } from 'reac
 export type DocumentAction = 
   | { type: 'LOAD_DOCUMENT'; payload: { id: string } }
   | { type: 'DOCUMENT_UPLOADED' }
+  | { type: 'STIX_LOADING_START' }
+  | { type: 'STIX_LOADING_COMPLETE' }
 
 // Define document state
 interface DocumentState {
   lastAction: string | null;
   lastUpdated: number;
   selectedDocumentId: string | null;
+  isStixLoading: boolean;
 }
 
 // Create the context
@@ -36,6 +39,20 @@ function documentReducer(state: DocumentState, action: DocumentAction): Document
         lastAction: 'DOCUMENT_UPLOADED',
         lastUpdated: Date.now()
       }
+    case 'STIX_LOADING_START':
+      return {
+        ...state,
+        isStixLoading: true,
+        lastAction: 'STIX_LOADING_START',
+        lastUpdated: Date.now()
+      }
+    case 'STIX_LOADING_COMPLETE':
+      return {
+        ...state,
+        isStixLoading: false,
+        lastAction: 'STIX_LOADING_COMPLETE',
+        lastUpdated: Date.now()
+      }
     default:
       return state
   }
@@ -46,7 +63,8 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(documentReducer, {
     lastAction: null,
     lastUpdated: 0,
-    selectedDocumentId: null
+    selectedDocumentId: null,
+    isStixLoading: false
   })
 
   return (

@@ -25,37 +25,42 @@ function DocumentHistoryContent() {
   const { state, dispatch } = useDocument();
 
   // Fetch documents from the API
-  useEffect(() => {
-    const fetchDocuments = async () => {
-      if (!session?.user) return;
+  const fetchDocuments = async () => {
+    if (!session?.user) return;
 
-      try {
-        setIsLoading(true);
-        const response = await fetch("/api/documents");
+    try {
+      setIsLoading(true);
+      const response = await fetch("/api/documents");
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch documents");
-        }
-
-        const data = await response.json();
-        setDocuments(data.documents);
-      } catch (error) {
-        console.error("Error fetching documents:", error);
-        setError(
-          error instanceof Error ? error.message : "Failed to fetch documents"
-        );
-      } finally {
-        setIsLoading(false);
+      if (!response.ok) {
+        throw new Error("Failed to fetch documents");
       }
-    };
 
-    fetchDocuments();
+      const data = await response.json();
+      setDocuments(data.documents);
+    } catch (error) {
+      console.error("Error fetching documents:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to fetch documents"
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    // Refetch when documents are uploaded
+  // Initial fetch when component mounts
+  useEffect(() => {
+    if (session?.user) {
+      fetchDocuments();
+    }
+  }, [session]);
+
+  // Only refetch when documents are uploaded, not when they are selected
+  useEffect(() => {
     if (state.lastAction === "DOCUMENT_UPLOADED") {
       fetchDocuments();
     }
-  }, [session, state.lastAction, state.lastUpdated]);
+  }, [state.lastAction, state.lastUpdated]);
 
   // Filter documents based on search term
   const filteredDocuments = documents.filter((doc) =>

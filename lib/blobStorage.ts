@@ -15,6 +15,7 @@ export async function uploadDocumentWithText(
     const originalBlob = await put(`documents/${userId}/${fileName}`, file, {
       contentType: fileType,
       access: 'public',
+      allowOverwrite: true,
     });
 
     // Extract text from the document
@@ -27,6 +28,7 @@ export async function uploadDocumentWithText(
     const textBlob = await put(`documents/${userId}/text/${textFileName}`, textContent, {
       contentType: 'text/plain',
       access: 'public',
+      allowOverwrite: true,
     });
 
     return {

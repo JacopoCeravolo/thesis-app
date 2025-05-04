@@ -155,6 +155,90 @@
   display: none;
 }
 
+.fileUploader {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: var(--background);
+  min-height: 300px;
+}
+
+.dragging {
+  border-color: var(--primary);
+  background-color: rgba(var(--primary-rgb), 0.05);
+}
+
+.uploadContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: 400px;
+}
+
+.uploadIcon {
+  width: 48px;
+  height: 48px;
+  color: var(--primary);
+  margin-bottom: 1rem;
+}
+
+.dragText {
+  margin: 1rem 0;
+  color: var(--muted-foreground);
+}
+
+.selectedFileInfo {
+  margin: 1rem 0;
+  padding: 1rem;
+  background-color: rgba(var(--primary-rgb), 0.05);
+  border-radius: 6px;
+  width: 100%;
+}
+
+.errorMessage {
+  color: var(--destructive);
+  margin: 0.5rem 0;
+}
+
+.supportedFormats {
+  font-size: 0.8rem;
+  color: var(--muted-foreground);
+  margin-top: 0.5rem;
+}
+
+.fileInput {
+  display: none;
+}
+
+.browseButton {
+  margin-top: 1rem;
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.2s;
+}
+
+.browseButton:hover {
+  background-color: rgba(var(--primary-rgb), 0.8);
+}
+
+.browseButton:disabled {
+  background-color: var(--muted);
+  cursor: not-allowed;
+}
+
 /* Document viewer styles */
 .documentViewer {
   flex: 1;

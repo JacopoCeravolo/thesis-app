@@ -9,7 +9,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -65,10 +65,11 @@ model VerificationToken {
 model document {
   id             String   @id @default(cuid())
   fileName       String
+  fileSize       Int
+  fileType       String
   originalUrl    String
   textUrl        String?
-  fileType       String
-  fileSize       Int
+  stixBundleUrl  String?
   uploadedAt     DateTime @default(now())
   userId         String
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)

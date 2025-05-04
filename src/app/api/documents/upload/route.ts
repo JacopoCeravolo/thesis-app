@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "../../auth/[...nextauth]/options";
 import prisma from "../../../../../lib/prisma";
 import { uploadDocumentWithText } from "../../../../../lib/blobStorage";
+import { uploadStixBundle } from "../../../../../lib/stixExtractor";
+import { extractStixWithGemini } from "../../../../../lib/geminiExtractor";
 
 const ALLOWED_FILE_TYPES = [
   'application/pdf',
@@ -52,39 +54,67 @@ export async function POST(request: NextRequest) {
     // Check file type
     if (!ALLOWED_FILE_TYPES.includes(file.type)) {
       return NextResponse.json(
-        { error: "Unsupported file type. Allowed types: PDF, DOCX, DOC, TXT, JSON" },
+        { error: `Unsupported file type: ${file.type}. Allowed types: PDF, DOCX, DOC, TXT, JSON` },
         { status: 400 }
       );
     }
     
-    // Convert file to buffer
+    // Get the file details
+    const fileName = file.name;
+    const fileType = file.type;
     const fileBuffer = Buffer.from(await file.arrayBuffer());
     
-    // Upload file and extract text
+    // Upload the document and get storage URLs
     const { originalUrl, textUrl, fileSize } = await uploadDocumentWithText(
       fileBuffer,
-      file.name,
-      file.type,
+      fileName,
+      fileType,
       userId
     );
     
-    // Save document metadata to database
+    // Extract text for STIX generation
+    let textContent = '';
+    try {
+      const textResponse = await fetch(textUrl);
+      if (textResponse.ok) {
+        textContent = await textResponse.text();
+        console.log(`Successfully fetched text content (${textContent.length} characters)`);
+      } else {
+        console.error("Failed to fetch text content, status:", textResponse.status);
+      }
+    } catch (error) {
+      console.error("Error fetching text content for STIX extraction:", error);
+    }
+    
+    // Make sure we have text content before attempting STIX extraction
+    if (!textContent) {
+      console.warn("No text content extracted, STIX extraction may fail");
+    }
+    
+    // Extract STIX objects using Gemini
+    const stixBundle = await extractStixWithGemini(textContent, fileName);
+    
+    // Upload the STIX bundle
+    const stixBundleUrl = await uploadStixBundle(stixBundle, userId, fileName);
+    
+    // Create document record in database
     // @ts-expect-error - We know the document model exists
     const document = await prisma.document.create({
       data: {
-        fileName: file.name,
+        fileName,
+        fileSize,
+        fileType,
         originalUrl,
         textUrl,
-        fileType: file.type,
-        fileSize,
+        stixBundleUrl,
         userId,
       },
     });
     
-    return NextResponse.json(
-      { message: "Document uploaded successfully", document },
-      { status: 201 }
-    );
+    return NextResponse.json({ 
+      message: "Document uploaded successfully",
+      document
+    }, { status: 201 });
   } catch (error) {
     console.error("Document upload error:", error);
     return NextResponse.json(
