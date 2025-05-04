@@ -20,7 +20,9 @@
   display: flex;
   border-bottom: 1px solid var(--border-color);
   padding-left: 1rem;
+  padding-right: 1rem;
   flex-shrink: 0;
+  align-items: center;
 }
 
 .tabTrigger {
@@ -333,5 +335,28 @@
 }
 
 .sendButton:hover {
+  background-color: var(--primary-dark);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.newReportButton {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.25rem;
+}
+
+.newReportButton:hover {
   background-color: var(--primary-dark);
 }

@@ -14,6 +14,7 @@ import { ClientAuthProvider } from '@/contexts/AuthContext'
 import { Worker, Viewer } from '@react-pdf-viewer/core'
 // Import PDF viewer styles
 import '@react-pdf-viewer/core/lib/styles/index.css'
+import { useDocument } from '@/contexts/DocumentContext'
 
 interface Message {
   id: string
@@ -39,6 +40,7 @@ function DocumentPanelContent() {
   const [uploadError, setUploadError] = useState<string | null>(null)
   const { data: session } = useSession()
   const router = useRouter()
+  const { state, dispatch } = useDocument()
 
   // Handle file upload
   const handleFileUpload = async (file: File) => {
@@ -85,6 +87,9 @@ function DocumentPanelContent() {
         }
       ]);
       
+      // Dispatch document uploaded action to refresh document history
+      dispatch({ type: 'DOCUMENT_UPLOADED' });
+      
       // Refresh the document list
       router.refresh();
     } catch (error) {
@@ -97,7 +102,6 @@ function DocumentPanelContent() {
   };
 
   // Load document content when viewing an existing document
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const loadDocument = useCallback(async (id: string) => {
     if (!session?.user) {
       router.push('/login');
@@ -136,6 +140,13 @@ function DocumentPanelContent() {
     }
   }, [session, router]);
 
+  // Watch for document selection from history
+  useEffect(() => {
+    if (state.selectedDocumentId) {
+      loadDocument(state.selectedDocumentId);
+    }
+  }, [state.selectedDocumentId, loadDocument]);
+
   // Handle chat message submission
   const handleMessageSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -160,6 +171,14 @@ function DocumentPanelContent() {
     setMessages(prevMessages => [...prevMessages, userMessage, systemMessage])
     setInputMessage('')
   }
+
+  // Reset the document panel and clear current document
+  const handleNewReport = () => {
+    setFile(null);
+    setDocumentData(null);
+    setMessages([]);
+    setInputMessage('');
+  };
 
   if (!file && !documentData) {
     return <FileUploader 
@@ -186,6 +205,13 @@ function DocumentPanelContent() {
             onClick={() => setActiveTab('chat')}
           >
             Chat
+          </button>
+          <div className={styles.spacer}></div>
+          <button 
+            className={styles.newReportButton}
+            onClick={handleNewReport}
+          >
+            + New Report
           </button>
         </div>
         
