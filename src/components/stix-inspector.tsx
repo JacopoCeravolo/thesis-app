@@ -74,11 +74,95 @@ export function StixInspector() {
   const [searchText, setSearchText] = useState("");
   const [activeViewTab, setActiveViewTab] = useState("json");
   const [stixBundle, setStixBundle] = useState<STIXBundle | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [extractionStartTime, setExtractionStartTime] = useState<number | null>(
+    null
+  );
   const { state, dispatch } = useDocument();
 
-  // Fetch STIX bundle when document is selected
+  // Listen for direct loading state changes via custom event
+  useEffect(() => {
+    const handleLoadingStateChange = (
+      event: CustomEvent<{
+        isLoading: boolean;
+        extractionStartTime?: number | null;
+      }>
+    ) => {
+      console.log(
+        "[STIX Inspector] Received custom loading event:",
+        event.detail.isLoading,
+        "extractionStartTime:",
+        event.detail.extractionStartTime
+      );
+      setIsLoading(event.detail.isLoading);
+
+      // If we receive an extraction start time, track it
+      if (event.detail.extractionStartTime) {
+        setExtractionStartTime(event.detail.extractionStartTime);
+      }
+
+      // If loading is complete, reset the extraction start time
+      if (!event.detail.isLoading) {
+        setExtractionStartTime(null);
+      }
+    };
+
+    // Check if the global loading state is already set
+    if (typeof window !== "undefined") {
+      if ((window as any).stixIsLoading) {
+        console.log("[STIX Inspector] Initial global loading state is true");
+        setIsLoading(true);
+      }
+
+      // Also check for extraction start time
+      if ((window as any).stixExtractionStartTime) {
+        console.log(
+          "[STIX Inspector] Initial extraction start time:",
+          (window as any).stixExtractionStartTime
+        );
+        setExtractionStartTime((window as any).stixExtractionStartTime);
+      }
+    }
+
+    // Add event listener for the custom event
+    window.addEventListener(
+      "stixLoadingStateChanged",
+      handleLoadingStateChange as EventListener
+    );
+
+    // Clean up
+    return () => {
+      window.removeEventListener(
+        "stixLoadingStateChanged",
+        handleLoadingStateChange as EventListener
+      );
+    };
+  }, []);
+
+  // Debug log for STIX loading state changes from context
+  useEffect(() => {
+    console.log(
+      `[STIX Inspector] Context STIX loading state changed: ${
+        state.isStixLoading ? "loading" : "not loading"
+      }`
+    );
+
+    // Sync our local loading state with context if it changes to false
+    if (!state.isStixLoading && isLoading) {
+      setIsLoading(false);
+    }
+  }, [state.isStixLoading, isLoading]);
+
+  // Fetch STIX bundle when document is selected or when loading state changes
   useEffect(() => {
     const fetchStixBundle = async () => {
+      // Always log STIX loading state for debugging
+      console.log(
+        `[STIX Inspector] fetchStixBundle called. Loading state: ${
+          isLoading ? "loading" : "not loading"
+        }, extraction start time: ${extractionStartTime}`
+      );
+
       if (state.selectedDocumentId) {
         try {
           const response = await fetch(
@@ -90,60 +174,129 @@ export function StixInspector() {
           }
 
           const data = await response.json();
-          
+
           if (data.document.stixBundleUrl) {
-            // If document has a STIX bundle URL, fetch the bundle
+            // If document has a STIX bundle URL, check if it's a new bundle after extraction
             try {
               const bundleResponse = await fetch(data.document.stixBundleUrl);
-              
+
               if (bundleResponse.ok) {
                 const bundleData = await bundleResponse.json();
-                setStixBundle(bundleData);
-                // STIX loading is complete
-                dispatch({ type: 'STIX_LOADING_COMPLETE' });
+
+                // Check document modification time against extraction start time
+                const modifiedTime = new Date(
+                  data.document.uploadedAt
+                ).getTime();
+
+                // Only update the bundle if:
+                // 1. We're not currently waiting for a new extraction (no extractionStartTime), OR
+                // 2. The document was modified after the extraction started (meaning new data is available)
+                if (
+                  !extractionStartTime ||
+                  modifiedTime > extractionStartTime
+                ) {
+                  console.log(
+                    "[STIX Inspector] Setting new STIX bundle, modified time:",
+                    modifiedTime,
+                    "extraction start time:",
+                    extractionStartTime
+                  );
+                  setStixBundle(bundleData);
+
+                  // STIX loading is complete since we have fresh data
+                  dispatch({ type: "STIX_LOADING_COMPLETE" });
+                  setIsLoading(false);
+                  setExtractionStartTime(null);
+                  (window as any).stixIsLoading = false;
+                  (window as any).stixExtractionStartTime = null;
+                } else {
+                  console.log(
+                    "[STIX Inspector] Ignoring old STIX bundle, waiting for new extraction to complete"
+                  );
+                  // We have an old bundle but we're waiting for the new one
+                  // Keep the loading state active
+                }
               } else {
                 console.error("Failed to fetch STIX bundle from URL");
                 // Don't set mock data here - keep showing loading state
               }
             } catch (bundleError) {
-              console.error("Error fetching STIX bundle from URL:", bundleError);
+              console.error(
+                "Error fetching STIX bundle from URL:",
+                bundleError
+              );
               // Don't set mock data here - keep showing loading state
             }
           } else {
             // If document doesn't have a STIX bundle yet, it might still be processing
             console.log("Document doesn't have STIX bundle URL yet");
-            
+
             // Note: we don't complete loading here as the extraction might still be in progress
-            // The DocumentPanel component will handle the STIX_LOADING_COMPLETE when extraction is done
           }
         } catch (error) {
           console.error("Error fetching document data:", error);
-          dispatch({ type: 'STIX_LOADING_COMPLETE' });
+          dispatch({ type: "STIX_LOADING_COMPLETE" });
+          setIsLoading(false);
+          setExtractionStartTime(null);
+          (window as any).stixIsLoading = false;
+          (window as any).stixExtractionStartTime = null;
         }
       } else {
         // No document selected, clear the bundle and ensure loading is complete
         setStixBundle(null);
-        dispatch({ type: 'STIX_LOADING_COMPLETE' });
+        dispatch({ type: "STIX_LOADING_COMPLETE" });
+        setIsLoading(false);
+        setExtractionStartTime(null);
+        (window as any).stixIsLoading = false;
+        (window as any).stixExtractionStartTime = null;
       }
     };
 
-    fetchStixBundle();
-    
+    // Conditionally fetch based on state
+    if (state.selectedDocumentId) {
+      fetchStixBundle();
+    }
+
     // Set up polling to check for STIX bundle completion
     let pollInterval: NodeJS.Timeout | null = null;
-    
+
     // Only poll if we have a selected document and STIX is loading
-    if (state.selectedDocumentId && state.isStixLoading) {
+    if (state.selectedDocumentId && (isLoading || state.isStixLoading)) {
+      console.log("Starting polling for STIX bundle");
       pollInterval = setInterval(() => {
+        console.log(
+          "Polling for STIX bundle...",
+          "extraction start time:",
+          extractionStartTime
+        );
         fetchStixBundle();
-      }, 5000); // Check every 5 seconds
+      }, 2000); // Check every 2 seconds for faster feedback
     }
-    
+
     // Clean up interval when component unmounts or dependencies change
     return () => {
-      if (pollInterval) clearInterval(pollInterval);
+      if (pollInterval) {
+        console.log("Clearing polling interval");
+        clearInterval(pollInterval);
+      }
     };
-  }, [state.selectedDocumentId, state.isStixLoading, dispatch]);
+  }, [
+    state.selectedDocumentId,
+    isLoading,
+    state.isStixLoading,
+    extractionStartTime,
+    dispatch,
+  ]);
+
+  // Render loading state before any other conditional rendering
+  if (isLoading || state.isStixLoading) {
+    console.log("[STIX Inspector] Rendering loading state");
+    return (
+      <div className={styles.stixLoading}>
+        <Loader text="Extracting STIX data from document..." size="large" />
+      </div>
+    );
+  }
 
   // Filter bundle based on selected node
   const getFilteredBundle = () => {
@@ -244,18 +397,6 @@ export function StixInspector() {
   // Current bundle to display based on filters and selection
   const currentBundle = selectedNodeId ? getFilteredBundle() : filteredBundle;
 
-  // Add empty placeholder when loading
-  if (state.isStixLoading) {
-    return (
-      <div className={styles.stixLoading}>
-        <Loader text="Extracting STIX data from document..." size="large" />
-        <p className={styles.loadingText}>
-          This may take up to 30 seconds depending on the document size.
-        </p>
-      </div>
-    );
-  }
-  
   // Add empty placeholder when no document is selected
   if (!state.selectedDocumentId) {
     return (

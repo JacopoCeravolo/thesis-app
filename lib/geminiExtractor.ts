@@ -50,6 +50,7 @@ export async function extractStixWithGemini(
     const startTime = Date.now();
     
     const response = await model.generateContent([systemPrompt, content]);
+    
     const endTime = Date.now();
     console.log(`[STIX Extraction] Gemini API call completed in ${endTime - startTime}ms`);
     

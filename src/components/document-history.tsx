@@ -21,6 +21,10 @@ function DocumentHistoryContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(
+    null
+  );
+  const [isExtracting, setIsExtracting] = useState(false);
   const { data: session } = useSession();
   const { state, dispatch } = useDocument();
 
@@ -62,6 +66,61 @@ function DocumentHistoryContent() {
     }
   }, [state.lastAction, state.lastUpdated]);
 
+  // Update selected document based on context
+  useEffect(() => {
+    setSelectedDocumentId(state.selectedDocumentId);
+  }, [state.selectedDocumentId]);
+
+  // Handle re-extract STIX for the currently selected document
+  const handleReExtractStix = async () => {
+    if (!selectedDocumentId) {
+      alert("Please select a document first");
+      return;
+    }
+
+    try {
+      setIsExtracting(true);
+
+      // Get the document text content
+      const docResponse = await fetch(`/api/documents/${selectedDocumentId}`);
+
+      if (!docResponse.ok) {
+        throw new Error("Failed to fetch document");
+      }
+
+      const docData = await docResponse.json();
+
+      // Call the extraction endpoint
+      const extractionResponse = await fetch("/api/documents/extract", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          documentId: selectedDocumentId,
+          textContent: docData.document.textContent,
+        }),
+      });
+
+      if (!extractionResponse.ok) {
+        throw new Error("Failed to start STIX extraction");
+      }
+
+      // Notify that STIX extraction has started
+      dispatch({ type: "STIX_LOADING_START" });
+
+      // Show confirmation
+      alert("STIX extraction has been restarted. This may take a moment.");
+    } catch (error) {
+      console.error("Error re-extracting STIX:", error);
+      alert(
+        error instanceof Error ? error.message : "Failed to re-extract STIX"
+      );
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
   // Filter documents based on search term
   const filteredDocuments = documents.filter((doc) =>
     doc.fileName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -71,6 +130,26 @@ function DocumentHistoryContent() {
     <div className={styles.container}>
       <div className={styles.header}>
         <h2 className={styles.title}>Reports History</h2>
+        <div className={styles.actionButtons}>
+          <button
+            className={styles.newReportButton}
+            onClick={() => dispatch({ type: 'TRIGGER_FILE_UPLOAD' })}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={styles.buttonIcon}
+            >
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            New Report
+          </button>
+        </div>
         <Input
           type="text"
           placeholder="Search reports..."

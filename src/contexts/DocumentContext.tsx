@@ -9,6 +9,7 @@ export type DocumentAction =
   | { type: 'DOCUMENT_UPLOADED' }
   | { type: 'STIX_LOADING_START' }
   | { type: 'STIX_LOADING_COMPLETE' }
+  | { type: 'TRIGGER_FILE_UPLOAD' }
 
 // Define document state
 interface DocumentState {
@@ -16,6 +17,7 @@ interface DocumentState {
   lastUpdated: number;
   selectedDocumentId: string | null;
   isStixLoading: boolean;
+  triggerFileUpload: boolean;
 }
 
 // Create the context
@@ -61,6 +63,13 @@ function documentReducer(state: DocumentState, action: DocumentAction): Document
         lastAction: 'STIX_LOADING_COMPLETE',
         lastUpdated: Date.now()
       }
+    case 'TRIGGER_FILE_UPLOAD':
+      return {
+        ...state,
+        triggerFileUpload: !state.triggerFileUpload, // Toggle to ensure state change even if called multiple times
+        lastAction: 'TRIGGER_FILE_UPLOAD',
+        lastUpdated: Date.now()
+      }
     default:
       return state
   }
@@ -72,7 +81,8 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
     lastAction: null,
     lastUpdated: 0,
     selectedDocumentId: null,
-    isStixLoading: false
+    isStixLoading: false,
+    triggerFileUpload: false
   })
 
   return (

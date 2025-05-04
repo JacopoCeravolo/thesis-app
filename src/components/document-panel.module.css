@@ -408,21 +408,49 @@
   flex: 1;
 }
 
-.newReportButton {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
+.buttonIcon {
+  width: 1rem;
+  height: 1rem;
+  margin-right: 0.5rem;
+}
+
+.reExtractButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   padding: 0.5rem 1rem;
   border-radius: var(--radius);
   font-size: 0.875rem;
   font-weight: 500;
+  border: 1px solid var(--border-color);
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 2.25rem;
+  transition: all 0.2s ease;
+  background-color: var(--accent-color);
+  color: var(--text-color);
+}
+
+.reExtractButton:hover:not(:disabled) {
+  background-color: var(--accent-color-hover);
+}
+
+.reExtractButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.newReportButton {
+  padding: 0.5rem 1rem;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
 
 .newReportButton:hover {
-  background-color: var(--primary-dark);
+  background-color: var(--primary-color-dark);
 }
