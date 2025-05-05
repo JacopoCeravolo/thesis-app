@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "../contexts/AuthContext";
 import { DocumentProvider } from "../contexts/DocumentContext";
+import { Navbar } from "@/components/navbar";
 
 export const metadata: Metadata = {
   title: "STIX Analyzer",
@@ -18,6 +19,7 @@ export default function RootLayout({
       <body className="min-h-screen bg-background font-sans antialiased">
         <AuthProvider>
           <DocumentProvider>
+            <Navbar />
             {children}
           </DocumentProvider>
         </AuthProvider>

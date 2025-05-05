@@ -139,7 +139,7 @@
 }
 
 .userMenuButton {
-  display: block;
+  display: flex;
   width: 100%;
   text-align: left;
   background: none;
@@ -150,6 +150,15 @@
   border-radius: var(--radius);
   cursor: pointer;
   transition: background-color 0.2s;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+}
+
+.userMenuButtonIcon {
+  width: 16px;
+  height: 16px;
+  color: var(--text-secondary);
 }
 
 .userMenuButton:hover {

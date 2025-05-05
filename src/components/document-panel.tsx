@@ -194,14 +194,14 @@ function DocumentPanelContent() {
             data-state={activeTab === "document" ? "active" : ""}
             onClick={() => setActiveTab("document")}
           >
-            Document
+            Report
           </button>
           <button
             className={styles.tabTrigger}
             data-state={activeTab === "chat" ? "active" : ""}
             onClick={() => setActiveTab("chat")}
           >
-            Chat
+            Inspect
           </button>
           <div className={styles.spacer}></div>
         </div>
@@ -217,9 +217,7 @@ function DocumentPanelContent() {
             </div>
           ) : uploadError ? (
             <div className={styles.uploaderContainer}>
-              <div className={styles.errorMessage}>
-                {uploadError}
-              </div>
+              <div className={styles.errorMessage}>{uploadError}</div>
             </div>
           ) : documentData || file ? (
             <DocumentViewer
