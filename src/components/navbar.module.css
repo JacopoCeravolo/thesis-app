@@ -97,12 +97,11 @@
   align-items: center;
 }
 
-.userMenu:hover .userMenuDropdown {
-  display: block;
+.userAvatar {
+  cursor: pointer;
 }
 
 .userMenuDropdown {
-  display: none;
   position: absolute;
   top: 100%;
   right: 0;
