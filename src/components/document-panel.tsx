@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Button } from "./ui/button";
 import { ScrollArea } from "./ui/scroll-area";
 import { Textarea } from "./ui/textarea";
@@ -37,6 +37,7 @@ function DocumentPanelContent() {
   const [inputMessage, setInputMessage] = useState("");
   const [activeTab, setActiveTab] = useState("document");
   const [isUploading, setIsUploading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const { data: session } = useSession();
   const router = useRouter();
@@ -111,6 +112,7 @@ function DocumentPanelContent() {
         return;
       }
 
+      setIsLoading(true);
       try {
         const response = await fetch(`/api/documents/${id}`);
 
@@ -139,12 +141,12 @@ function DocumentPanelContent() {
         ]);
       } catch (error) {
         console.error("Error loading document:", error);
-        setUploadError(
-          error instanceof Error ? error.message : "Failed to load document"
-        );
+        setDocumentData(null);
+      } finally {
+        setIsLoading(false);
       }
     },
-    [session, router]
+    [router, session]
   );
 
   // Watch for document selection from history
@@ -208,7 +210,26 @@ function DocumentPanelContent() {
           className={styles.tabContent}
           data-state={activeTab === "document" ? "active" : ""}
         >
-          <DocumentViewer file={file} documentData={documentData} />
+          {isUploading ? (
+            <div className={styles.loadingState}>
+              <div className={styles.spinner}></div>
+              <p>Uploading document...</p>
+            </div>
+          ) : uploadError ? (
+            <div className={styles.uploaderContainer}>
+              <div className={styles.errorMessage}>
+                {uploadError}
+              </div>
+            </div>
+          ) : documentData || file ? (
+            <DocumentViewer
+              file={file}
+              documentData={documentData}
+              isLoading={isLoading}
+            />
+          ) : (
+            <DocumentDropzone onFileUpload={handleFileUpload} />
+          )}
         </div>
 
         <div
@@ -235,97 +256,234 @@ export function DocumentPanel() {
   );
 }
 
+interface DocumentDropzoneProps {
+  onFileUpload: (file: File) => void;
+}
+
+function DocumentDropzone({ onFileUpload }: DocumentDropzoneProps) {
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      onFileUpload(file);
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      onFileUpload(file);
+      // Reset the input value to allow uploading the same file again if needed
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleBrowseClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  return (
+    <div className={styles.uploaderContainer}>
+      <div
+        className={`${styles.dropzone} ${
+          isDragging ? styles.dropzoneActive : ""
+        }`}
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        <div className={styles.iconContainer}>
+          <UploadIcon className={styles.iconPrimary} />
+        </div>
+        <h3 className={styles.dropzoneTitle}>Upload a document</h3>
+        <p className={styles.dropzoneText}>
+          Drag and drop a file here, or click to browse
+        </p>
+        <p className={styles.fileFormats}>
+          Supports PDF, TXT, and other text formats
+        </p>
+        <button
+          type="button"
+          className={styles.browseButton}
+          onClick={handleBrowseClick}
+        >
+          Browse Files
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          className={styles.fileInput}
+          accept=".pdf,.txt,.doc,.docx"
+          onChange={handleFileInputChange}
+        />
+      </div>
+    </div>
+  );
+}
+
 interface DocumentViewerProps {
   file: File | null;
   documentData: DocumentData | null;
+  isLoading: boolean;
 }
 
-function DocumentViewer({ file, documentData }: DocumentViewerProps) {
-  // Create a blob URL from the file if it exists
-  const [fileUrl, setFileUrl] = useState<string | null>(null);
+function DocumentViewer({
+  file,
+  documentData,
+  isLoading,
+}: DocumentViewerProps) {
+  const [pdfURL, setPdfURL] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  // Generate blob URL when file changes
+  // Set up PDF URL for PDF.js viewer
   useEffect(() => {
     if (file) {
+      setLoading(true);
       const url = URL.createObjectURL(file);
-      setFileUrl(url);
-      return () => URL.revokeObjectURL(url);
+      setPdfURL(url);
+      setLoading(false);
+
+      return () => {
+        URL.revokeObjectURL(url);
+        setPdfURL(null);
+      };
+    } else if (
+      documentData?.fileType === "application/pdf" &&
+      documentData.id
+    ) {
+      setLoading(true);
+      setPdfURL(`/api/documents/${documentData.id}/pdf`);
+      // We'll set loading to false once PDF is rendered
+    } else {
+      setPdfURL(null);
+      setLoading(false);
     }
-  }, [file]);
+  }, [file, documentData]);
 
-  // Determine the file type
-  const fileType = file?.type || documentData?.fileType || "";
-  const isPdf = fileType.includes("pdf");
-  const isText = fileType.includes("text") || fileType.includes("txt");
-
-  if (!file && !documentData) {
+  // Show loading state when document is loading
+  if (isLoading || (loading && !pdfURL && !documentData?.textContent)) {
     return (
-      <div className={styles.emptyDocumentViewer}>
-        <p>No document loaded. Upload or select a document to view.</p>
+      <div className={styles.loadingState}>
+        <div className={styles.spinner}></div>
+        <p>Loading document...</p>
       </div>
     );
   }
 
-  return (
-    <div className={styles.documentViewer}>
-      {isPdf ? (
-        <div className={styles.pdfViewer}>
-          <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.4.120/build/pdf.worker.min.js">
-            <div style={{ height: "100%", width: "100%" }}>
-              {fileUrl ? (
-                <Viewer fileUrl={fileUrl} />
-              ) : documentData?.id ? (
-                // For PDF documents loaded from database
-                <Viewer fileUrl={`/api/documents/${documentData.id}/file`} />
-              ) : (
-                <div>Unable to load PDF</div>
+  // Show empty state when no document is selected
+  if (!file && !documentData) {
+    return (
+      <div className={styles.uploaderContainer}>
+        <div className={styles.emptyMessage}>
+          No document selected. Please upload a document or select one from the
+          history.
+        </div>
+      </div>
+    );
+  }
+
+  // For PDF files, use PDF.js viewer
+  if (
+    pdfURL &&
+    ((file && file.type === "application/pdf") ||
+      documentData?.fileType === "application/pdf")
+  ) {
+    return (
+      <div className={styles.documentViewer}>
+        <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
+          <div style={{ height: "100%" }}>
+            <Viewer
+              fileUrl={pdfURL}
+              onDocumentLoad={() => setLoading(false)}
+              renderError={(error) => (
+                <div className={styles.emptyMessage}>
+                  Failed to load PDF: {error.message}
+                </div>
               )}
-            </div>
-          </Worker>
+            />
+          </div>
+        </Worker>
+      </div>
+    );
+  }
+
+  // For text content, show in document content container
+  if (documentData?.textContent) {
+    return (
+      <div className={styles.documentViewer}>
+        <div className={styles.documentContent}>
+          <h2 className={styles.documentTitle}>{documentData.fileName}</h2>
+          <div className={styles.prose}>
+            {documentData.textContent.split("\n").map((paragraph, index) => (
+              <p key={index}>{paragraph}</p>
+            ))}
+          </div>
         </div>
-      ) : isText && documentData?.textContent ? (
-        // Text viewer for text documents
-        <div className={styles.textViewer}>
-          <pre className={styles.textContent}>{documentData.textContent}</pre>
-        </div>
-      ) : (
-        // Default placeholder content - same as in the original implementation
-        <div className={styles.dummyDocument}>
-          <h3>Sample Document View</h3>
-          <p>
-            The document would be processed to extract STIX objects, and those
-            objects would be highlighted in this view.
-          </p>
-          <p>For example, this document contains references to:</p>
-          <ul>
-            <li>
-              <span
-                className={`${styles.entityHighlight} ${styles.entityMalware}`}
-              >
-                Malware: TrickBot
-              </span>
-            </li>
-            <li>
-              <span
-                className={`${styles.entityHighlight} ${styles.entityThreatActor}`}
-              >
-                Threat Actor: Wizard Spider
-              </span>
-            </li>
-            <li>
-              <span
-                className={`${styles.entityHighlight} ${styles.entityAttackPattern}`}
-              >
-                Attack Pattern: Phishing
-              </span>
-            </li>
-          </ul>
-          <p>
-            These objects have been added to the STIX bundle in the right
-            sidebar.
-          </p>
-        </div>
-      )}
+      </div>
+    );
+  }
+
+  // Default placeholder content - same as in the original implementation
+  return (
+    <div className={styles.dummyDocument}>
+      <h3>Sample Document View</h3>
+      <p>
+        The document would be processed to extract STIX objects, and those
+        objects would be highlighted in this view.
+      </p>
+      <p>For example, this document contains references to:</p>
+      <ul>
+        <li>
+          <span className={`${styles.entityHighlight} ${styles.entityMalware}`}>
+            Malware: TrickBot
+          </span>
+        </li>
+        <li>
+          <span
+            className={`${styles.entityHighlight} ${styles.entityThreatActor}`}
+          >
+            Threat Actor: Wizard Spider
+          </span>
+        </li>
+        <li>
+          <span
+            className={`${styles.entityHighlight} ${styles.entityAttackPattern}`}
+          >
+            Attack Pattern: Phishing
+          </span>
+        </li>
+      </ul>
+      <p>
+        These objects have been added to the STIX bundle in the right sidebar.
+      </p>
     </div>
   );
 }
@@ -348,9 +506,7 @@ function ChatInterface({
       <div className={styles.messagesContainer}>
         <div className={styles.messagesList}>
           {messages.length === 0 ? (
-            <div className={styles.emptyMessage}>
-              Ask questions about the uploaded document
-            </div>
+            <div className={styles.emptyMessage}>Inspect the report</div>
           ) : (
             messages.map((message) => (
               <div
