@@ -448,42 +448,6 @@ function DocumentViewer({
       </div>
     );
   }
-
-  // Default placeholder content - same as in the original implementation
-  return (
-    <div className={styles.dummyDocument}>
-      <h3>Sample Document View</h3>
-      <p>
-        The document would be processed to extract STIX objects, and those
-        objects would be highlighted in this view.
-      </p>
-      <p>For example, this document contains references to:</p>
-      <ul>
-        <li>
-          <span className={`${styles.entityHighlight} ${styles.entityMalware}`}>
-            Malware: TrickBot
-          </span>
-        </li>
-        <li>
-          <span
-            className={`${styles.entityHighlight} ${styles.entityThreatActor}`}
-          >
-            Threat Actor: Wizard Spider
-          </span>
-        </li>
-        <li>
-          <span
-            className={`${styles.entityHighlight} ${styles.entityAttackPattern}`}
-          >
-            Attack Pattern: Phishing
-          </span>
-        </li>
-      </ul>
-      <p>
-        These objects have been added to the STIX bundle in the right sidebar.
-      </p>
-    </div>
-  );
 }
 
 interface ChatInterfaceProps {

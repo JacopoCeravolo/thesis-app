@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Input } from "./ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { JsonViewerComponent } from "./json-viewer";
@@ -91,173 +91,96 @@ export function StixInspector() {
     }
   }, [state.selectedDocumentId, currentDocumentId]);
 
-  // Fetch STIX data when a document is selected
+  // Fetch STIX data for the selected document
   useEffect(() => {
-    const fetchStixData = async () => {
-      if (!state.selectedDocumentId) {
-        setStixBundle(null);
-        setIsLoading(false);
-        setExtractionInProgress(false);
-        return;
-      }
+    let pollingInterval: NodeJS.Timeout | undefined;
 
+    async function fetchStix() {
+      if (!state.selectedDocumentId) return;
+      
       setIsLoading(true);
       setError(null);
+      setStixBundle(null); // Clear existing data to ensure loader shows
 
       try {
-        // First fetch document metadata to check if STIX data already exists
-        const docResponse = await fetch(
-          `/api/documents/${state.selectedDocumentId}`
-        );
-
-        if (!docResponse.ok) {
-          throw new Error(
-            `Failed to fetch document data: ${docResponse.status}`
-          );
-        }
-
-        const docData = await docResponse.json();
-        console.log("Received document data:", docData);
-
-        // If document already has STIX data, fetch it directly
-        if (docData.document.stixBundleUrl) {
-          console.log(
-            "Document already has STIX data, fetching from URL:",
-            docData.document.stixBundleUrl
-          );
-
-          const stixResponse = await fetch(docData.document.stixBundleUrl);
-          if (!stixResponse.ok) {
-            throw new Error(
-              `Failed to fetch STIX bundle: ${stixResponse.status}`
-            );
-          }
-
-          const stixBundle = await stixResponse.json();
-          setStixBundle(stixBundle);
-          setIsLoading(false);
-          setExtractionInProgress(false);
-        } else {
-          // No STIX data exists yet, trigger extraction
-          console.log("No STIX data exists yet, triggering extraction");
-          setExtractionInProgress(true);
-
-          const extractResponse = await fetch(
-            `/api/extract/${state.selectedDocumentId}`
-          );
-
-          if (!extractResponse.ok) {
-            throw new Error(
-              `Failed to extract STIX data: ${extractResponse.status}`
-            );
-          }
-
-          const extractData = await extractResponse.json();
-
-          if (extractData.stixBundleUrl) {
-            console.log(
-              "STIX extraction completed, fetching from URL:",
-              extractData.stixBundleUrl
-            );
-
-            // Fetch the newly extracted STIX bundle
-            const stixResponse = await fetch(extractData.stixBundleUrl);
-            if (!stixResponse.ok) {
-              throw new Error(
-                `Failed to fetch extracted STIX bundle: ${stixResponse.status}`
-              );
+        const response = await fetch(`/api/extract/${state.selectedDocumentId}`);
+        const data = await response.json();
+        
+        // Check if this is a background processing response
+        if (data.status === "pending" || data.status === "processing") {
+          console.log("STIX extraction in progress:", data);
+          // Keep loading state active
+          setIsLoading(true);
+          
+          // Start polling for completion
+          pollingInterval = setInterval(async () => {
+            try {
+              const pollResponse = await fetch(`/api/extract/${state.selectedDocumentId}`);
+              const pollData = await pollResponse.json();
+              
+              console.log("Polling extraction status:", pollData);
+              
+              // Check if extraction is complete (response has no status field)
+              if (pollResponse.ok && !pollData.status) {
+                // We have the actual STIX data now
+                setStixBundle(pollData);
+                setIsLoading(false);
+                clearInterval(pollingInterval);
+              } else if (pollData.status === "failed") {
+                // Extraction failed
+                setError(`STIX extraction failed: ${pollData.error || "Unknown error"}`);
+                setIsLoading(false);
+                clearInterval(pollingInterval);
+              }
+              // Continue polling if still processing
+            } catch (pollError) {
+              console.error("Polling error:", pollError);
             }
-
-            const stixBundle = await stixResponse.json();
-            setStixBundle(stixBundle);
-          } else if (extractData.status === "extraction_in_progress") {
-            // If extraction is still processing, keep the loading state
-            console.log("STIX extraction is still processing");
-            setStixBundle(null); // Ensure we don't show old data
-          } else {
-            throw new Error(
-              `STIX extraction did not return a bundle URL: ${JSON.stringify(
-                extractData
-              )}`
-            );
-          }
-
+          }, 3000);
+        } else if (!response.ok) {
+          // Regular error
+          throw new Error(data.error || "Failed to fetch STIX data");
+        } else {
+          // We already have the STIX data
+          console.log("STIX data received directly:", data);
+          setStixBundle(data);
           setIsLoading(false);
-          setExtractionInProgress(
-            extractData.status === "extraction_in_progress"
-          );
         }
       } catch (err) {
-        console.error("Error fetching STIX data:", err);
-        setError(err instanceof Error ? err.message : String(err));
+        console.error("Error in STIX extraction:", err);
+        setError(err instanceof Error ? err.message : "Error in STIX extraction");
         setIsLoading(false);
-        setExtractionInProgress(false);
       }
-    };
-
-    fetchStixData();
-
-    // Poll for extraction status if extraction is in progress
-    let pollingInterval: NodeJS.Timeout | null = null;
-
-    if (extractionInProgress && state.selectedDocumentId) {
-      pollingInterval = setInterval(async () => {
-        try {
-          console.log("Polling for extraction status...");
-          const docResponse = await fetch(
-            `/api/documents/${state.selectedDocumentId}`
-          );
-
-          if (!docResponse.ok) {
-            throw new Error(
-              `Failed to fetch document data: ${docResponse.status}`
-            );
-          }
-
-          const docData = await docResponse.json();
-
-          // If STIX data is now available, fetch it
-          if (docData.document.stixBundleUrl) {
-            console.log(
-              "STIX data now available, fetching from URL:",
-              docData.document.stixBundleUrl
-            );
-
-            const stixResponse = await fetch(docData.document.stixBundleUrl);
-            if (!stixResponse.ok) {
-              throw new Error(
-                `Failed to fetch STIX bundle: ${stixResponse.status}`
-              );
-            }
-
-            const stixBundle = await stixResponse.json();
-            setStixBundle(stixBundle);
-            setExtractionInProgress(false);
-
-            // Clear the polling interval once data is available
-            if (pollingInterval) {
-              clearInterval(pollingInterval);
-            }
-          }
-        } catch (err) {
-          console.error("Error polling for extraction status:", err);
-          // Don't set error here to avoid disrupting the UI during polling
-        }
-      }, 5000); // Poll every 5 seconds
     }
-
-    // Clean up polling interval on component unmount or document change
+    
+    fetchStix();
+    
+    // Clean up interval on unmount or when document changes
     return () => {
       if (pollingInterval) {
         clearInterval(pollingInterval);
       }
     };
-  }, [state.selectedDocumentId, extractionInProgress]);
+  }, [state.selectedDocumentId]);
+
+  // Find all unique object types in the bundle
+  const getObjectTypes = () => {
+    if (
+      !stixBundle ||
+      !stixBundle.objects ||
+      !Array.isArray(stixBundle.objects)
+    ) {
+      return ["All"];
+    }
+
+    const types = [...new Set(stixBundle.objects.map((obj) => obj.type))];
+    return ["All", ...types.sort()];
+  };
 
   // Filter bundle based on selected node
   const getFilteredBundle = () => {
-    if (!selectedNodeId || !stixBundle) {
-      return stixBundle || mockStixBundle;
+    if (!stixBundle || !stixBundle.objects) {
+      return { type: "bundle", id: "empty-bundle", objects: [] };
     }
 
     // Find all relationships that include the selected node
@@ -295,62 +218,74 @@ export function StixInspector() {
     };
   };
 
-  // Filter by type and search text
-  const filteredBundle = stixBundle
-    ? {
-        // Use real data or mock data if none is available
-        ...stixBundle,
-        objects: stixBundle.objects.filter((obj) => {
-          // Filter by type if selected
-          if (
-            selectedType &&
-            obj.type !== selectedType &&
-            obj.type !== "relationship"
-          ) {
-            return false;
-          }
+  // Get filtered bundle based on search term and selected type
+  const filteredBundle = useMemo(() => {
+    if (!stixBundle || !stixBundle.objects) {
+      return { type: "bundle", id: "empty-bundle", objects: [] };
+    }
 
-          // Filter by search text if provided
-          if (searchText) {
-            const lowerSearch = searchText.toLowerCase();
-            // Check name or description
-            const nameMatch =
-              obj.name && obj.name.toLowerCase().includes(lowerSearch);
-            const descMatch =
-              obj.description &&
-              obj.description.toLowerCase().includes(lowerSearch);
+    return {
+      ...stixBundle,
+      objects: stixBundle.objects.filter((obj) => {
+        // Filter by type if selected
+        if (
+          selectedType &&
+          selectedType !== "All" &&
+          obj.type !== selectedType
+        ) {
+          return false;
+        }
 
-            // Also check ID if it looks like a search for a specific object
-            const idMatch =
-              lowerSearch.includes("--") &&
-              obj.id.toLowerCase().includes(lowerSearch);
+        // Filter by search term
+        if (searchText && searchText.trim() !== "") {
+          const term = searchText.toLowerCase();
+          const matchesName = obj.name && obj.name.toLowerCase().includes(term);
+          const matchesId = obj.id.toLowerCase().includes(term);
+          const matchesType = obj.type.toLowerCase().includes(term);
 
-            if (!nameMatch && !descMatch && !idMatch) {
-              return false;
-            }
-          }
+          // For indicators, also search pattern
+          const matchesPattern =
+            obj.type === "indicator" &&
+            obj.pattern &&
+            obj.pattern.toLowerCase().includes(term);
 
-          return true;
-        }),
-      }
-    : mockStixBundle;
+          return matchesName || matchesId || matchesType || matchesPattern;
+        }
+
+        return true;
+      }),
+    };
+  }, [stixBundle, searchText, selectedType]);
 
   // Select or deselect a node
   const handleNodeSelect = (id: string | null) => {
     setSelectedNodeId(id);
   };
 
-  // Get unique types for the filter
-  const objectTypes = Array.from(
-    new Set(
-      (stixBundle || mockStixBundle).objects
-        .filter((obj) => obj.type !== "relationship")
-        .map((obj) => obj.type)
-    )
-  );
-
   // Current bundle to display based on filters and selection
-  const currentBundle = selectedNodeId ? getFilteredBundle() : filteredBundle;
+  const currentBundle = useMemo(() => {
+    if (selectedNodeId && stixBundle && stixBundle.objects) {
+      return getFilteredBundle();
+    }
+    return filteredBundle;
+  }, [selectedNodeId, stixBundle, filteredBundle]);
+
+  // Add loading state at the component level
+  if (isLoading) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.loadingContainer}>
+          <div className={styles.spinner}></div>
+          <p className={styles.loadingText}>
+            Extracting STIX bundle from document...
+          </p>
+          <p className={styles.loadingSubText}>
+            This might take up to 30 seconds depending on document size
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // Add empty placeholder when no document is selected
   if (!state.selectedDocumentId) {
@@ -358,16 +293,6 @@ export function StixInspector() {
       <div className={styles.emptyState}>
         <h3>STIX Inspector</h3>
         <p>Select a document to view extracted STIX entities</p>
-      </div>
-    );
-  }
-
-  // Show loading state
-  if (isLoading || extractionInProgress) {
-    return (
-      <div className={styles.loadingState}>
-        <div className={styles.spinner}></div>
-        <p>Extracting STIX data...</p>
       </div>
     );
   }
@@ -399,14 +324,7 @@ export function StixInspector() {
 
         <div className={styles.tabsRow}>
           <div className={styles.tabsList}>
-            <button
-              className={styles.tab}
-              data-state={selectedType === null ? "active" : ""}
-              onClick={() => setSelectedType(null)}
-            >
-              All
-            </button>
-            {objectTypes.map((type) => (
+            {getObjectTypes().map((type) => (
               <button
                 key={type}
                 className={styles.tab}

@@ -1,133 +1,226 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../../auth/[...nextauth]/options";
+import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 import prisma from "../../../../../lib/prisma";
-import { put } from "@vercel/blob";
-import { v4 as uuidv4 } from "uuid";
+import { put as putBlob } from "@vercel/blob";
 import { extractStixWithGemini, extractStixWithDeepSeek } from "../../../../../lib/stixExtractor";
 
-// Global toggle for extraction model (can be changed to 'deepseek' to switch models)
-const EXTRACTION_MODEL = 'deepseek';
+// Set maximum API execution duration to 60 seconds (maximum Vercel allows)
+export const maxDuration = 60;
 
+// Choose which extraction model to use
+const EXTRACTION_MODEL = process.env.EXTRACTION_MODEL || 'deepseek';
+
+// Background extraction queue and status tracking
+type ExtractionStatus = 'pending' | 'processing' | 'completed' | 'failed';
+type ExtractionJob = {
+  documentId: string;
+  status: ExtractionStatus;
+  error?: string;
+  progress: number;
+  startTime: number;
+};
+
+// In-memory job tracking (would use Redis or similar in production)
+const extractionJobs = new Map<string, ExtractionJob>();
+
+// Process a STIX extraction job in the background
+async function processExtraction(documentId: string, userId: string, textContent: string) {
+  try {
+    console.log(`Starting STIX extraction for document ${documentId} using ${EXTRACTION_MODEL}`);
+    
+    // Update job status
+    extractionJobs.set(documentId, {
+      documentId,
+      status: 'processing',
+      progress: 10,
+      startTime: Date.now()
+    });
+    
+    // Extract STIX bundle using the selected model
+    let stixBundle;
+    
+    if (EXTRACTION_MODEL === 'gemini') {
+      stixBundle = await extractStixWithGemini(textContent);
+    } else {
+      stixBundle = await extractStixWithDeepSeek(textContent);
+    }
+    
+    console.log(`Extracted STIX with ${EXTRACTION_MODEL}: ${stixBundle.objects.length} objects`);
+    
+    // Update job progress
+    extractionJobs.set(documentId, {
+      ...extractionJobs.get(documentId)!,
+      progress: 70
+    });
+    
+    // Save the STIX bundle to blob storage
+    const fileName = `documents/${userId}/stix/${documentId}.json`;
+    const stixBlob = await putBlob(
+      fileName,
+      JSON.stringify(stixBundle),
+      { 
+        contentType: "application/json",
+        access: "public"
+      }
+    );
+    
+    // Update the document record with STIX URL
+    await prisma.document.update({
+      where: { id: documentId },
+      data: {
+        stixBundleUrl: stixBlob.url
+      }
+    });
+    
+    // Mark job as completed
+    extractionJobs.set(documentId, {
+      ...extractionJobs.get(documentId)!,
+      status: 'completed',
+      progress: 100
+    });
+    
+    console.log(`STIX extraction completed for document ${documentId}`);
+  } catch (error) {
+    console.error(`Error in STIX extraction for document ${documentId}:`, error);
+    
+    // Mark job as failed
+    extractionJobs.set(documentId, {
+      ...extractionJobs.get(documentId)!,
+      status: 'failed',
+      error: error instanceof Error ? error.message : String(error),
+      progress: 0
+    });
+  }
+}
+
+// GET endpoint to retrieve extraction status or completed STIX bundle
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    // Check authentication
+    // Verify authentication
     const session = await getServerSession(authOptions);
-    
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     
     const userId = session.user.id;
     const documentId = params.id;
     
+    // First check if there's an ongoing extraction job
+    const job = extractionJobs.get(documentId);
+    if (job) {
+      if (job.status === 'processing' || job.status === 'pending') {
+        // If job is still processing, return status
+        return NextResponse.json({
+          status: job.status,
+          progress: job.progress,
+          documentId
+        });
+      } else if (job.status === 'failed') {
+        // If job failed, return the error
+        return NextResponse.json({
+          status: 'failed',
+          error: job.error || 'Unknown error during extraction',
+          documentId
+        }, { status: 500 });
+      }
+      // If completed, continue to return the actual STIX bundle below
+    }
+    
     // Find the document and ensure it belongs to the current user
     const document = await prisma.document.findFirst({
       where: {
         id: documentId,
-        userId,
-      },
+        userId
+      }
     });
     
     if (!document) {
-      return NextResponse.json(
-        { error: "Document not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Document not found" }, { status: 404 });
     }
     
-    // Start STIX extraction process
-    console.log(`Starting STIX extraction for document ${documentId} using ${EXTRACTION_MODEL}`);
-    
-    // Get document text content for extraction
-    let textContent = "";
-    
-    if (document.textUrl) {
-      // Fetch text content from the URL
-      const textResponse = await fetch(document.textUrl);
-      if (textResponse.ok) {
-        textContent = await textResponse.text();
-      } else {
-        console.error(`Failed to fetch text content from ${document.textUrl}`);
-      }
-    }
-    
-    if (!textContent) {
-      return NextResponse.json(
-        { error: "No text content available for extraction" },
-        { status: 400 }
-      );
-    }
-    
-    // Truncate text content if it's too large (most LLMs have context limits)
-    const MAX_CHARACTERS = 15000;
-    if (textContent.length > MAX_CHARACTERS) {
-      console.log(`Text content too large (${textContent.length} chars), truncating to ${MAX_CHARACTERS} chars`);
-      textContent = textContent.substring(0, MAX_CHARACTERS);
-    }
-    
-    // Extract STIX bundle using the selected model
-    let stixBundle;
-    
-    try {
-      if (EXTRACTION_MODEL === 'gemini') {
-        console.log("Extracting STIX with Gemini...");
-        stixBundle = await extractStixWithGemini(textContent);
-      } else {
-        console.log("Extracting STIX with DeepSeek...");
-        stixBundle = await extractStixWithDeepSeek(textContent);
+    // If document doesn't have STIX URL yet, start extraction in background
+    if (!document.stixBundleUrl) {
+      // Get text content from document
+      let textContent = '';
+      
+      if (document.textUrl) {
+        try {
+          const response = await fetch(document.textUrl);
+          if (response.ok) {
+            textContent = await response.text();
+          } else {
+            console.error(`Failed to fetch text content: ${response.status}`);
+          }
+        } catch (error) {
+          console.error(`Failed to fetch text content from ${document.textUrl}`);
+          return NextResponse.json({
+            status: 'failed', 
+            error: 'Failed to fetch document content',
+            documentId
+          }, { status: 500 });
+        }
       }
       
-      console.log(`Extracted STIX with ${EXTRACTION_MODEL}: ${stixBundle.objects.length} objects`);
+      if (!textContent) {
+        return NextResponse.json(
+          { error: "No text content available for extraction" },
+          { status: 400 }
+        );
+      }
+      
+      // Truncate text content if it's too large
+      const MAX_CHARACTERS = 15000;
+      if (textContent.length > MAX_CHARACTERS) {
+        console.log(`Text content too large (${textContent.length} chars), truncating to ${MAX_CHARACTERS} chars`);
+        textContent = textContent.substring(0, MAX_CHARACTERS);
+      }
+      
+      // Create a new extraction job and start processing in the background
+      extractionJobs.set(documentId, {
+        documentId,
+        status: 'pending',
+        progress: 0,
+        startTime: Date.now()
+      });
+      
+      // Start extraction in background without awaiting
+      processExtraction(documentId, userId, textContent).catch(error => {
+        console.error(`Background extraction error for ${documentId}:`, error);
+      });
+      
+      // Return immediate response that processing has begun
+      return NextResponse.json({
+        status: 'pending',
+        progress: 0,
+        documentId,
+        message: 'STIX extraction started in background'
+      });
+    }
+    
+    // If we already have a STIX URL, fetch and return the bundle
+    try {
+      const response = await fetch(document.stixBundleUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch STIX bundle: ${response.status}`);
+      }
+      
+      const stixBundle = await response.json();
+      return NextResponse.json(stixBundle);
     } catch (error) {
-      console.error(`Error extracting with ${EXTRACTION_MODEL}:`, error);
+      console.error('Error fetching STIX bundle:', error);
       return NextResponse.json(
-        { error: `Failed to extract STIX data with ${EXTRACTION_MODEL}` },
+        { error: "Failed to fetch STIX bundle" },
         { status: 500 }
       );
     }
-    
-    // Save to blob storage
-    const bundleContent = JSON.stringify(stixBundle, null, 2);
-    const stixBlob = await put(
-      `documents/${userId}/stix/${documentId}.json`, 
-      bundleContent,
-      {
-        contentType: 'application/json',
-        access: 'public',
-        allowOverwrite: true,
-      }
-    );
-    
-    // Update document record with STIX bundle URL
-    await prisma.document.update({
-      where: {
-        id: documentId
-      },
-      data: {
-        stixBundleUrl: stixBlob.url
-      } as any // Type assertion for TypeScript
-    });
-    
-    // Return the STIX bundle
-    return NextResponse.json({
-      success: true,
-      documentId,
-      stixBundleUrl: stixBlob.url,
-      stixBundle,
-      extractionModel: EXTRACTION_MODEL
-    });
-    
   } catch (error) {
-    console.error("Error in STIX extraction:", error);
+    console.error('Error in extraction API:', error);
     return NextResponse.json(
-      { error: "Failed to extract STIX data" },
+      { error: "Internal server error during extraction" },
       { status: 500 }
     );
   }
