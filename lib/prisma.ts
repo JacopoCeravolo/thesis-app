@@ -16,10 +16,4 @@ if (process.env.NODE_ENV === 'production') {
   prisma = globalForPrisma.prisma;
 }
 
-// Print all available model names when initializing in development
-if (process.env.NODE_ENV !== 'production') {
-  console.log('Available Prisma models:');
-  console.log(Object.keys(prisma));
-}
-
 export default prisma;

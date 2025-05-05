@@ -5,6 +5,7 @@ import { Input } from './ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import { JsonViewerComponent } from './json-viewer'
 import styles from './stix-inspector.module.css'
+import { useDocument } from "@/contexts/DocumentContext";
 
 interface STIXObject {
   id: string
@@ -19,11 +20,7 @@ interface STIXBundle {
   [key: string]: any
 }
 
-interface STIXInspectorProps {
-  // Props will be added when we have a real backend
-}
-
-// Mock STIX data for testing
+// Mock STIX data for testing - will be used as fallback when no document is loaded
 const mockStixBundle: STIXBundle = {
   type: "bundle",
   id: "bundle--756e7f1e-7c3f-4196-a2b5-9ae4676db4ef",
@@ -61,100 +58,189 @@ const mockStixBundle: STIXBundle = {
       target_ref: "malware--a5cc5ae4-5fa2-45fb-af4b-8fb0da4f3ea8"
     }
   ]
-}
+};
 
 export function StixInspector() {
-  const [selectedType, setSelectedType] = useState<string | null>(null)
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
-  const [searchText, setSearchText] = useState('')
-  const [activeViewTab, setActiveViewTab] = useState('json')
+  const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [searchText, setSearchText] = useState('');
+  const [activeViewTab, setActiveViewTab] = useState('json');
+  const [stixBundle, setStixBundle] = useState<STIXBundle | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  const { state } = useDocument();
+  
+  // Fetch STIX data when a document is selected
+  useEffect(() => {
+    const fetchStixData = async () => {
+      if (!state.selectedDocumentId) {
+        setStixBundle(null);
+        return;
+      }
+      
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        // Call the extract endpoint to generate STIX data
+        const response = await fetch(`/api/extract/${state.selectedDocumentId}`);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch STIX data: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Received STIX data:', data);
+        
+        if (data.stixBundle) {
+          setStixBundle(data.stixBundle);
+        } else {
+          setStixBundle(null);
+          setError('No STIX data available for this document');
+        }
+      } catch (err) {
+        console.error('Error fetching STIX data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch STIX data');
+        setStixBundle(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchStixData();
+  }, [state.selectedDocumentId]);
   
   // Filter bundle based on selected node
   const getFilteredBundle = () => {
-    if (!selectedNodeId) {
-      return mockStixBundle
+    if (!selectedNodeId || !stixBundle) {
+      return stixBundle || mockStixBundle;
     }
     
     // Find all relationships that include the selected node
-    const relatedRelationships = mockStixBundle.objects.filter(
+    const relatedRelationships = stixBundle.objects.filter(
       obj => obj.type === 'relationship' && 
       ((obj.source_ref && obj.source_ref === selectedNodeId) || 
        (obj.target_ref && obj.target_ref === selectedNodeId))
-    )
+    );
     
     // Get all the ids of objects connected through these relationships
-    const connectedIds = new Set<string>()
+    const connectedIds = new Set<string>();
     if (selectedNodeId) {
-      connectedIds.add(selectedNodeId)
+      connectedIds.add(selectedNodeId);
     }
     
     // Add both source and target of each relationship
     relatedRelationships.forEach(rel => {
-      if (rel.source_ref) connectedIds.add(rel.source_ref)
-      if (rel.target_ref) connectedIds.add(rel.target_ref)
-    })
+      if (rel.source_ref) connectedIds.add(rel.source_ref);
+      if (rel.target_ref) connectedIds.add(rel.target_ref);
+    });
     
     // Filter the bundle to only include selected object, related objects and their relationships
-    const filteredObjects = mockStixBundle.objects.filter(
+    const filteredObjects = stixBundle.objects.filter(
       obj => connectedIds.has(obj.id) || 
       (obj.type === 'relationship' && 
        ((obj.source_ref && connectedIds.has(obj.source_ref)) || 
         (obj.target_ref && connectedIds.has(obj.target_ref))))
-    )
+    );
     
     return {
-      ...mockStixBundle,
+      ...stixBundle,
       objects: filteredObjects
-    }
-  }
+    };
+  };
   
   // Filter by type and search text
   const filteredBundle = (() => {
-    let filtered = { ...mockStixBundle }
+    // Use real data or mock data if none is available
+    const currentBundle = stixBundle || mockStixBundle;
+    let filtered = { ...currentBundle };
     
     // Filter by type if selected
     if (selectedType) {
       filtered = {
         ...filtered,
         objects: filtered.objects.filter(obj => obj.type === selectedType || obj.type === 'relationship')
-      }
+      };
     }
     
     // Filter by search text if provided
     if (searchText) {
-      const lowerSearch = searchText.toLowerCase()
+      const lowerSearch = searchText.toLowerCase();
       filtered = {
         ...filtered,
         objects: filtered.objects.filter(obj => {
           // Check name or description
-          const nameMatch = obj.name && obj.name.toLowerCase().includes(lowerSearch)
-          const descMatch = obj.description && obj.description.toLowerCase().includes(lowerSearch)
+          const nameMatch = obj.name && obj.name.toLowerCase().includes(lowerSearch);
+          const descMatch = obj.description && obj.description.toLowerCase().includes(lowerSearch);
           
           // Also check ID if it looks like a search for a specific object
-          const idMatch = lowerSearch.includes('--') && obj.id.toLowerCase().includes(lowerSearch)
+          const idMatch = lowerSearch.includes('--') && obj.id.toLowerCase().includes(lowerSearch);
           
-          return nameMatch || descMatch || idMatch
+          return nameMatch || descMatch || idMatch;
         })
-      }
+      };
     }
     
-    return filtered
-  })()
+    return filtered;
+  })();
   
   // Select or deselect a node
   const handleNodeSelect = (id: string | null) => {
-    setSelectedNodeId(id)
-  }
+    setSelectedNodeId(id);
+  };
   
   // Get unique types for the filter
   const objectTypes = Array.from(
-    new Set(mockStixBundle.objects
-      .filter(obj => obj.type !== 'relationship')
-      .map(obj => obj.type))
-  )
+    new Set(
+      (stixBundle || mockStixBundle).objects
+        .filter(obj => obj.type !== 'relationship')
+        .map(obj => obj.type)
+    )
+  );
   
   // Current bundle to display based on filters and selection
-  const currentBundle = selectedNodeId ? getFilteredBundle() : filteredBundle
+  const currentBundle = selectedNodeId ? getFilteredBundle() : filteredBundle;
+
+  // Add empty placeholder when no document is selected
+  if (!state.selectedDocumentId) {
+    return (
+      <div className={styles.emptyState}>
+        <h3>STIX Inspector</h3>
+        <p>Select a document to view extracted STIX entities</p>
+      </div>
+    );
+  }
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className={styles.loadingState}>
+        <div className={styles.spinner}></div>
+        <p>Extracting STIX data...</p>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className={styles.errorState}>
+        <h3>STIX Inspector</h3>
+        <p>Error: {error}</p>
+      </div>
+    );
+  }
+
+  // If no bundle is available but document is selected, show empty state
+  if (!stixBundle && !mockStixBundle) {
+    return (
+      <div className={styles.emptyState}>
+        <h3>STIX Inspector</h3>
+        <p>No STIX entities found in this document</p>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>
@@ -239,5 +325,5 @@ export function StixInspector() {
         </div>
       </div>
     </div>
-  )
+  );
 }

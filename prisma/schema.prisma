@@ -69,6 +69,7 @@ model document {
   textUrl        String?
   fileType       String
   fileSize       Int
+  stixBundleUrl  String?
   uploadedAt     DateTime @default(now())
   userId         String
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)

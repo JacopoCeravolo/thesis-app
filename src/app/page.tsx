@@ -1,81 +1,80 @@
-"use client"
+"use client";
 
-import { useRef, useEffect } from 'react'
-import { Navbar, DocumentHistory, DocumentPanel, StixInspector } from '@/components'
-import styles from './layout.module.css'
+import { DocumentHistory } from "@/components/document-history";
+import { StixInspector } from "@/components/stix-inspector";
+import { FileUploader } from "@/components/file-uploader";
+import { useState } from "react";
+import { useDocument } from "@/contexts/DocumentContext";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import styles from "./page.module.css";
 
 export default function Home() {
-  const rightSidebarRef = useRef<HTMLDivElement>(null);
-  const resizeHandleRef = useRef<HTMLDivElement>(null);
-  const isResizingRef = useRef(false);
-  
-  useEffect(() => {
-    const rightSidebar = rightSidebarRef.current;
-    const resizeHandle = resizeHandleRef.current;
-    
-    if (!rightSidebar || !resizeHandle) return;
-    
-    const onMouseDown = (e: MouseEvent) => {
-      e.preventDefault();
-      isResizingRef.current = true;
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-      
-      const startX = e.clientX;
-      const sidebarWidth = rightSidebar.getBoundingClientRect().width;
-      
-      const onMouseMove = (e: MouseEvent) => {
-        if (!isResizingRef.current) return;
-        
-        const currentX = e.clientX;
-        const deltaX = startX - currentX;
-        const newWidth = Math.min(600, Math.max(200, sidebarWidth + deltaX));
-        
-        rightSidebar.style.width = `${newWidth}px`;
-      };
-      
-      const onMouseUp = () => {
-        isResizingRef.current = false;
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-        
-        document.removeEventListener('mousemove', onMouseMove);
-        document.removeEventListener('mouseup', onMouseUp);
-      };
-      
-      document.addEventListener('mousemove', onMouseMove);
-      document.addEventListener('mouseup', onMouseUp);
-    };
-    
-    resizeHandle.addEventListener('mousedown', onMouseDown);
-    
-    return () => {
-      resizeHandle.removeEventListener('mousedown', onMouseDown);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-  }, []);
-  
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const { dispatch } = useDocument();
+  const router = useRouter();
+  const { data: session } = useSession();
+
+  const handleFileUpload = async (file: File) => {
+    if (!session?.user) {
+      router.push("/login");
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/documents/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to upload document");
+      }
+
+      const data = await response.json();
+
+      // Notify document context that a document was uploaded
+      dispatch({ type: "DOCUMENT_UPLOADED" });
+
+      // Navigate to the document view page
+      router.push(`/report/${data.document.id}`);
+    } catch (error) {
+      console.error("Error uploading document:", error);
+      setUploadError(
+        error instanceof Error ? error.message : "Failed to upload document"
+      );
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   return (
-    <div className={styles.container}>
-      <Navbar />
-      <main className={styles.main}>
-        {/* Left Sidebar - Document History */}
-        <div className={styles.leftSidebar}>
+    <main className={styles.main}>
+      <div className={styles.container}>
+        <div className={styles.sidePanel}>
           <DocumentHistory />
         </div>
-        
-        {/* Center Panel - Document Viewer + Chat */}
-        <div className={styles.center}>
-          <DocumentPanel />
+        <div className={styles.mainPanel}>
+          <div className={styles.documentPlaceholder}>
+            <FileUploader
+              onFileUpload={handleFileUpload}
+              isUploading={isUploading}
+              error={uploadError}
+            />
+          </div>
         </div>
-        
-        {/* Right Sidebar - STIX Bundle Inspector */}
-        <div className={styles.rightSidebar} ref={rightSidebarRef}>
-          <div className={styles.resizeHandle} ref={resizeHandleRef}></div>
+        <div className={styles.rightPanel}>
           <StixInspector />
         </div>
-      </main>
-    </div>
-  )
+      </div>
+    </main>
+  );
 }

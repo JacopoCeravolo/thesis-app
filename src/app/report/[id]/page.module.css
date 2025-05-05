@@ -1,0 +1,54 @@
+.main {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--background-color);
+}
+
+.container {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  height: calc(100vh - 60px); /* Adjust for navbar if needed */
+}
+
+.sidePanel {
+  width: 260px;
+  height: 100%;
+  border-right: 1px solid var(--border-color);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.mainPanel {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.rightPanel {
+  width: 340px;
+  border-left: 1px solid var(--border-color);
+  height: 100%;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.loadingState,
+.errorState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+
+.errorState {
+  color: var(--error-color);
+}

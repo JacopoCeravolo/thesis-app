@@ -8,6 +8,7 @@ import styles from "./document-history.module.css";
 import { useSession } from "next-auth/react";
 import { ClientAuthProvider } from "@/contexts/AuthContext";
 import { useDocument } from "@/contexts/DocumentContext";
+import { useRouter } from "next/navigation";
 
 interface Document {
   id: string;
@@ -23,6 +24,7 @@ function DocumentHistoryContent() {
   const [searchTerm, setSearchTerm] = useState("");
   const { data: session } = useSession();
   const { state, dispatch } = useDocument();
+  const router = useRouter();
 
   // Fetch documents from the API
   useEffect(() => {
@@ -57,6 +59,11 @@ function DocumentHistoryContent() {
     }
   }, [session, state.lastAction, state.lastUpdated]);
 
+  // Navigate to home page to create a new report
+  const handleNewReport = () => {
+    router.push('/');
+  };
+
   // Filter documents based on search term
   const filteredDocuments = documents.filter((doc) =>
     doc.fileName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -66,6 +73,9 @@ function DocumentHistoryContent() {
     <div className={styles.container}>
       <div className={styles.header}>
         <h2 className={styles.title}>Reports History</h2>
+        <button className={styles.newReportButton} onClick={handleNewReport}>
+          + New Report
+        </button>
         <Input
           type="text"
           placeholder="Search reports..."
@@ -74,6 +84,7 @@ function DocumentHistoryContent() {
           onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
+
       <Separator className={styles.separator} />
       <ScrollArea className={styles.scrollArea}>
         {isLoading ? (
@@ -118,7 +129,7 @@ interface DocumentListItemProps {
 }
 
 function DocumentListItem({ id, name, timestamp }: DocumentListItemProps) {
-  const { dispatch } = useDocument();
+  const router = useRouter();
 
   // Format the timestamp to a more readable format
   const formattedDate = new Date(timestamp).toLocaleDateString("en-US", {
@@ -128,9 +139,9 @@ function DocumentListItem({ id, name, timestamp }: DocumentListItemProps) {
   });
 
   const handleDocumentClick = () => {
-    console.log(`Loading document: ${id}`);
-    // Dispatch action to load document
-    dispatch({ type: "LOAD_DOCUMENT", payload: { id } });
+    console.log(`Navigating to document: ${id}`);
+    // Navigate to the document page instead of just loading it
+    router.push(`/report/${id}`);
   };
 
   return (
