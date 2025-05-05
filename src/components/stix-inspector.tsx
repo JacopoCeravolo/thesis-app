@@ -83,21 +83,46 @@ export function StixInspector() {
       setError(null);
       
       try {
-        // Call the extract endpoint to generate STIX data
-        const response = await fetch(`/api/extract/${state.selectedDocumentId}`);
+        // First fetch document metadata to check if STIX data already exists
+        const docResponse = await fetch(`/api/documents/${state.selectedDocumentId}`);
         
-        if (!response.ok) {
-          throw new Error(`Failed to fetch STIX data: ${response.status}`);
+        if (!docResponse.ok) {
+          throw new Error(`Failed to fetch document data: ${docResponse.status}`);
         }
         
-        const data = await response.json();
-        console.log('Received STIX data:', data);
+        const docData = await docResponse.json();
+        console.log('Received document data:', docData);
         
-        if (data.stixBundle) {
-          setStixBundle(data.stixBundle);
+        // If document already has STIX data, fetch it directly
+        if (docData.document.stixBundleUrl) {
+          console.log('Document already has STIX data, fetching from URL:', docData.document.stixBundleUrl);
+          
+          const stixResponse = await fetch(docData.document.stixBundleUrl);
+          if (!stixResponse.ok) {
+            throw new Error(`Failed to fetch STIX bundle: ${stixResponse.status}`);
+          }
+          
+          const stixBundle = await stixResponse.json();
+          setStixBundle(stixBundle);
         } else {
-          setStixBundle(null);
-          setError('No STIX data available for this document');
+          // No STIX data exists yet, trigger extraction
+          console.log('No STIX data exists yet, triggering extraction');
+          
+          const extractResponse = await fetch(`/api/extract/${state.selectedDocumentId}`);
+          
+          if (!extractResponse.ok) {
+            throw new Error(`Failed to extract STIX data: ${extractResponse.status}`);
+          }
+          
+          const extractData = await extractResponse.json();
+          console.log('Received extracted STIX data:', extractData);
+          
+          if (extractData.stixBundle) {
+            setStixBundle(extractData.stixBundle);
+          } else {
+            setStixBundle(null);
+            setError('No STIX data available for this document');
+          }
         }
       } catch (err) {
         console.error('Error fetching STIX data:', err);

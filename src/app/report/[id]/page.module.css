@@ -37,6 +37,23 @@
   height: 100%;
   flex-shrink: 0;
   overflow: hidden;
+  position: relative;
+}
+
+.resizeHandle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background-color: transparent;
+  cursor: col-resize;
+  z-index: 10;
+  transform: translateX(-2px);
+}
+
+.resizeHandle:hover {
+  background-color: var(--primary-color);
 }
 
 .loadingState,

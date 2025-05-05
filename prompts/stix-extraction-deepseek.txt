@@ -1,0 +1,35 @@
+I need you to extract STIX 2.1 objects from the following threat intelligence report. 
+
+Please identify the following types of objects: 
+- Threat Actors
+- Malware
+- Tools
+- Attack Patterns
+- Indicators
+- Vulnerabilities
+- Identities
+- Infrastructure
+- Campaigns
+- Intrusion Sets
+
+For each object identified, extract the required properties according to the STIX 2.1 specification.
+
+Also identify relationships between these objects. Common relationship types include:
+- uses (threat-actor → malware/tool)
+- targets (threat-actor → identity/vulnerability)
+- indicates (indicator → malware/campaign)
+- mitigates (course-of-action → attack-pattern/vulnerability)
+- delivers (malware → malware)
+- exploits (malware/tool → vulnerability)
+
+Return the results as a single JSON array containing STIX objects and their relationships.
+Each object should have at minimum:
+- id (in format "type--uuid")
+- type
+- name (if applicable)
+- description (if available)
+
+Here is the report text:
+[TEXT_CONTENT]
+
+Return just the JSON array of STIX objects, nothing else. Format your response as valid JSON.
