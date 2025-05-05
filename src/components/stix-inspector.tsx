@@ -97,29 +97,33 @@ export function StixInspector() {
 
     async function fetchStix() {
       if (!state.selectedDocumentId) return;
-      
+
       setIsLoading(true);
       setError(null);
       setStixBundle(null); // Clear existing data to ensure loader shows
 
       try {
-        const response = await fetch(`/api/extract/${state.selectedDocumentId}`);
+        const response = await fetch(
+          `/api/extract/${state.selectedDocumentId}`
+        );
         const data = await response.json();
-        
+
         // Check if this is a background processing response
         if (data.status === "pending" || data.status === "processing") {
           console.log("STIX extraction in progress:", data);
           // Keep loading state active
           setIsLoading(true);
-          
+
           // Start polling for completion
           pollingInterval = setInterval(async () => {
             try {
-              const pollResponse = await fetch(`/api/extract/${state.selectedDocumentId}`);
+              const pollResponse = await fetch(
+                `/api/extract/${state.selectedDocumentId}`
+              );
               const pollData = await pollResponse.json();
-              
+
               console.log("Polling extraction status:", pollData);
-              
+
               // Check if extraction is complete (response has no status field)
               if (pollResponse.ok && !pollData.status) {
                 // We have the actual STIX data now
@@ -128,7 +132,9 @@ export function StixInspector() {
                 clearInterval(pollingInterval);
               } else if (pollData.status === "failed") {
                 // Extraction failed
-                setError(`STIX extraction failed: ${pollData.error || "Unknown error"}`);
+                setError(
+                  `STIX extraction failed: ${pollData.error || "Unknown error"}`
+                );
                 setIsLoading(false);
                 clearInterval(pollingInterval);
               }
@@ -148,13 +154,15 @@ export function StixInspector() {
         }
       } catch (err) {
         console.error("Error in STIX extraction:", err);
-        setError(err instanceof Error ? err.message : "Error in STIX extraction");
+        setError(
+          err instanceof Error ? err.message : "Error in STIX extraction"
+        );
         setIsLoading(false);
       }
     }
-    
+
     fetchStix();
-    
+
     // Clean up interval on unmount or when document changes
     return () => {
       if (pollingInterval) {
@@ -279,9 +287,7 @@ export function StixInspector() {
           <p className={styles.loadingText}>
             Extracting STIX bundle from document...
           </p>
-          <p className={styles.loadingSubText}>
-            This might take up to 30 seconds depending on document size
-          </p>
+          <p className={styles.loadingSubText}>This might take a while</p>
         </div>
       </div>
     );

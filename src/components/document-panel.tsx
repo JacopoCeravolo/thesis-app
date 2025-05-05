@@ -210,24 +210,15 @@ function DocumentPanelContent() {
           className={styles.tabContent}
           data-state={activeTab === "document" ? "active" : ""}
         >
-          {isUploading ? (
-            <div className={styles.loadingState}>
-              <div className={styles.spinner}></div>
-              <p>Uploading document...</p>
-            </div>
-          ) : uploadError ? (
-            <div className={styles.uploaderContainer}>
-              <div className={styles.errorMessage}>{uploadError}</div>
-            </div>
-          ) : documentData || file ? (
-            <DocumentViewer
-              file={file}
-              documentData={documentData}
-              isLoading={isLoading}
-            />
-          ) : (
-            <DocumentDropzone onFileUpload={handleFileUpload} />
-          )}
+          <DocumentViewer
+            file={file}
+            documentData={documentData}
+            isLoading={isLoading}
+            isUploading={isUploading}
+            uploadError={uploadError}
+            onFileUpload={handleFileUpload}
+            onErrorDismiss={() => setUploadError(null)}
+          />
         </div>
 
         <div
@@ -351,13 +342,66 @@ interface DocumentViewerProps {
   file: File | null;
   documentData: DocumentData | null;
   isLoading: boolean;
+  isUploading: boolean;
+  uploadError: string | null;
+  onFileUpload: (file: File) => void;
+  onErrorDismiss: () => void;
 }
 
 function DocumentViewer({
   file,
   documentData,
   isLoading,
+  isUploading,
+  uploadError,
+  onFileUpload,
+  onErrorDismiss,
 }: DocumentViewerProps) {
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className={styles.documentViewer}>
+        <div className={styles.loadingContainer}>
+          <div className={styles.spinner}></div>
+          <p className={styles.loadingText}>Loading document...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show upload dropzone if no file or document data
+  if (!file && !documentData) {
+    return (
+      <div className={styles.documentViewer}>
+        <DocumentDropzone onFileUpload={onFileUpload} />
+      </div>
+    );
+  }
+
+  // Show upload progress for new files
+  if (isUploading) {
+    return (
+      <div className={styles.documentViewer}>
+        <div className={styles.loadingContainer}>
+          <div className={styles.spinner}></div>
+          <p className={styles.loadingText}>Uploading document...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show upload error
+  if (uploadError) {
+    return (
+      <div className={styles.documentViewer}>
+        <div className={styles.errorContainer}>
+          <p className={styles.errorText}>Error: {uploadError}</p>
+          <Button onClick={onErrorDismiss}>Try Again</Button>
+        </div>
+      </div>
+    );
+  }
+
   const [pdfURL, setPdfURL] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -387,11 +431,13 @@ function DocumentViewer({
   }, [file, documentData]);
 
   // Show loading state when document is loading
-  if (isLoading || (loading && !pdfURL && !documentData?.textContent)) {
+  if (loading && !pdfURL && !documentData?.textContent) {
     return (
-      <div className={styles.loadingState}>
-        <div className={styles.spinner}></div>
-        <p>Loading document...</p>
+      <div className={styles.documentViewer}>
+        <div className={styles.loadingContainer}>
+          <div className={styles.spinner}></div>
+          <p className={styles.loadingText}>Loading document...</p>
+        </div>
       </div>
     );
   }
