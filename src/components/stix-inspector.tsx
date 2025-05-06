@@ -20,49 +20,6 @@ interface STIXBundle {
   [key: string]: any;
 }
 
-// Mock STIX data for testing - will be used as fallback when no document is loaded
-const mockStixBundle: STIXBundle = {
-  type: "bundle",
-  id: "bundle--756e7f1e-7c3f-4196-a2b5-9ae4676db4ef",
-  objects: [
-    {
-      type: "threat-actor",
-      id: "threat-actor--d0372943-1579-4117-ae8c-2ba3897081a9",
-      name: "Wizard Spider",
-      description:
-        "Wizard Spider is a financially motivated criminal group that has been conducting ransomware campaigns since 2018.",
-    },
-    {
-      type: "malware",
-      id: "malware--a5cc5ae4-5fa2-45fb-af4b-8fb0da4f3ea8",
-      name: "TrickBot",
-      description:
-        "TrickBot is a modular banking trojan first observed in 2016 and regularly updated.",
-    },
-    {
-      type: "attack-pattern",
-      id: "attack-pattern--b9c5b4e3-3d1c-4a8c-82f4-d89b0e4b5d1f",
-      name: "Phishing",
-      description:
-        "Phishing involves sending emails with a malicious attachment or link.",
-    },
-    {
-      type: "relationship",
-      id: "relationship--ca285fe5-7af2-4115-a250-b7ac2215ab21",
-      relationship_type: "uses",
-      source_ref: "threat-actor--d0372943-1579-4117-ae8c-2ba3897081a9",
-      target_ref: "malware--a5cc5ae4-5fa2-45fb-af4b-8fb0da4f3ea8",
-    },
-    {
-      type: "relationship",
-      id: "relationship--e7f6efad-0b1b-47e7-9c3c-8f799f9fb335",
-      relationship_type: "delivers",
-      source_ref: "attack-pattern--b9c5b4e3-3d1c-4a8c-82f4-d89b0e4b5d1f",
-      target_ref: "malware--a5cc5ae4-5fa2-45fb-af4b-8fb0da4f3ea8",
-    },
-  ],
-};
-
 export function StixInspector() {
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);

@@ -61,7 +61,8 @@ async function processExtraction(documentId: string, userId: string, textContent
       JSON.stringify(stixBundle),
       { 
         contentType: "application/json",
-        access: "public"
+        access: "public",
+        allowOverwrite: true
       }
     );
     

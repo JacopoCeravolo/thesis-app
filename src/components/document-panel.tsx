@@ -82,7 +82,7 @@ function DocumentPanelContent() {
       setMessages([
         {
           id: Date.now().toString(),
-          content: `File "${file.name}" has been uploaded and processed. You can now ask questions about it.`,
+          content: `File "${file.name}" has been uploaded and processed.`,
           sender: "system",
           timestamp: new Date(),
         },
