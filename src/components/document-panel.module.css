@@ -3,7 +3,6 @@
   flex-direction: column;
   height: 100%;
   width: 100%;
-  overflow: hidden;
   position: relative;
 }
 
@@ -12,7 +11,7 @@
   flex-direction: column;
   height: 100%;
   width: 100%;
-  overflow: hidden;
+  position: relative;
 }
 
 .tabsList {
@@ -23,6 +22,8 @@
   padding-right: 1rem;
   flex-shrink: 0;
   align-items: center;
+  z-index: 10;
+  background-color: var(--background-color);
 }
 
 .tabTrigger {
@@ -54,21 +55,17 @@
 }
 
 .tabContent {
-  flex: 1;
-  padding: 0;
-  margin: 0;
-  display: none;
-  overflow: hidden;
   position: absolute;
   top: 3rem; /* Height of tab list */
   left: 0;
   right: 0;
   bottom: 0;
+  display: none;
+  overflow: auto; /* Enable scrolling */
 }
 
 .tabContent[data-state="active"] {
-  display: flex;
-  flex-direction: column;
+  display: block;
 }
 
 /* File uploader styles */
@@ -79,7 +76,7 @@
   justify-content: center;
   height: 100%;
   padding: 2rem;
-  overflow: auto;
+  overflow: auto; /* Enable scrolling */
 }
 
 .dropzone {
@@ -157,15 +154,10 @@
 
 /* Document viewer styles */
 .documentViewer {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background-color: var(--background-color);
-  border-radius: var(--radius);
-  overflow: hidden;
-  position: relative;
-  min-height: 60vh;
   height: 100%;
+  width: 100%;
+  overflow: auto; /* Enable scrolling */
+  background-color: var(--background-color);
 }
 
 .documentContent {
@@ -347,7 +339,7 @@
   right: 0;
   bottom: 4.5rem; /* Height of chat form */
   padding: 1rem;
-  overflow-y: auto;
+  overflow-y: auto; /* Enable scrolling */
 }
 
 .messagesList {
@@ -398,6 +390,7 @@
   padding: 1rem;
   border-top: 1px solid var(--border-color);
   background-color: var(--background-color);
+  z-index: 5; /* Ensure it appears above content */
 }
 
 .chatInputArea {
@@ -461,4 +454,10 @@
 
 .newReportButton:hover {
   background-color: var(--primary-dark);
+}
+
+.pdfContainer {
+  height: 100%;
+  width: 100%;
+  overflow: auto; /* Enable scrolling */
 }

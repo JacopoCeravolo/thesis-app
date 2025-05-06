@@ -42,8 +42,9 @@ export default function ReportPage() {
         if (!isResizingRef.current) return;
 
         const currentX = e.clientX;
-        const deltaX = startX - currentX;
-        const newWidth = Math.min(600, Math.max(200, panelWidth + deltaX));
+        // When moving mouse left (smaller currentX), we want panel wider
+        // When moving mouse right (larger currentX), we want panel narrower
+        const newWidth = Math.min(600, Math.max(200, panelWidth - (currentX - startX)));
 
         rightPanel.style.width = `${newWidth}px`;
       };

@@ -6,6 +6,7 @@
   height: 100%;
   padding: 2rem;
   overflow: auto;
+  min-height: 0; /* Add this to ensure proper flex behavior */
 }
 
 .dropzone {

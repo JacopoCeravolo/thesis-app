@@ -463,7 +463,7 @@ function DocumentViewer({
     return (
       <div className={styles.documentViewer}>
         <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
-          <div style={{ height: "100%" }}>
+          <div className={styles.pdfContainer}>
             <Viewer
               fileUrl={pdfURL}
               onDocumentLoad={() => setLoading(false)}
@@ -511,7 +511,7 @@ function ChatInterface({
 }: ChatInterfaceProps) {
   return (
     <div className={styles.chatContainer}>
-      <div className={styles.messagesContainer}>
+      <ScrollArea className={styles.messagesContainer}>
         <div className={styles.messagesList}>
           {messages.length === 0 ? (
             <div className={styles.emptyMessage}>Inspect the report</div>
@@ -544,7 +544,7 @@ function ChatInterface({
             ))
           )}
         </div>
-      </div>
+      </ScrollArea>
       <div className={styles.chatForm}>
         <form onSubmit={handleMessageSubmit} className={styles.chatInputArea}>
           <textarea

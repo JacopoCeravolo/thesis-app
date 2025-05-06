@@ -13,6 +13,7 @@
   --destructive: #ef4444;
   --muted: #cbd5e1;
   --radius: 0.5rem;
+  --navbar-height: 60px;
 }
 
 html[data-theme='dark'] {
@@ -55,11 +56,12 @@ html[data-theme='dark'] {
   margin: 0;
 }
 
-html,
-body {
+html, body {
   max-width: 100vw;
-  height: 100%;
-  overflow-x: hidden;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, 
     "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", 
     "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
@@ -80,20 +82,20 @@ button, input, textarea {
 }
 
 #__next, .main-layout {
-  height: 100%;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .main-layout {
-  display: grid;
-  grid-template-rows: auto 1fr;
-  height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .content-area {
   display: grid;
-  grid-template-columns: 240px 1fr 340px;
+  grid-template-columns: 260px 1fr 340px;
+  height: calc(100vh - var(--navbar-height));
   overflow: hidden;
-  height: 100%;
 }
 
 .content-area > * {
