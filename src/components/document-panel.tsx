@@ -134,7 +134,7 @@ function DocumentPanelContent() {
         setMessages([
           {
             id: Date.now().toString(),
-            content: `Document "${data.document.fileName}" has been loaded. You can now ask questions about it.`,
+            content: `Document "${data.document.fileName}" has been loaded.`,
             sender: "system",
             timestamp: new Date(),
           },
@@ -204,6 +204,33 @@ function DocumentPanelContent() {
             Inspect
           </button>
           <div className={styles.spacer}></div>
+          {documentData && (
+            <button
+              className={styles.greyButton}
+              onClick={() => {
+                console.log("Re-extracting STIX for document:", documentData);
+              }}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ marginRight: '4px' }}
+              >
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                <path d="M21 3v5h-5" />
+                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                <path d="M3 21v-5h5" />
+              </svg>
+              Extract
+            </button>
+          )}
         </div>
 
         <div
@@ -548,7 +575,7 @@ function ChatInterface({
       <div className={styles.chatForm}>
         <form onSubmit={handleMessageSubmit} className={styles.chatInputArea}>
           <textarea
-            placeholder="Ask a question about the document..."
+            placeholder="Inspect report by asking the model..."
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             className={styles.chatTextarea}
@@ -600,6 +627,28 @@ function UploadIcon(props: React.SVGProps<SVGSVGElement>) {
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
       <polyline points="17 8 12 3 7 8" />
       <line x1="12" x2="12" y1="3" y2="15" />
+    </svg>
+  );
+}
+
+function RefreshIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+      <path d="M21 3v5h-5" />
+      <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+      <path d="M3 21v-5h5" />
     </svg>
   );
 }

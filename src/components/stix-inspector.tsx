@@ -60,6 +60,10 @@ export function StixInspector() {
       setStixBundle(null); // Clear existing data to ensure loader shows
 
       try {
+        console.log(
+          "Fetching STIX data for document:",
+          state.selectedDocumentId
+        );
         const response = await fetch(
           `/api/extract/${state.selectedDocumentId}`
         );

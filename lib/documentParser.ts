@@ -11,13 +11,13 @@ export async function extractTextFromDocument(
     // Handle different file types
     if (fileType === 'application/pdf') {
       try {
-        // For PDFs, we'll return a placeholder until we implement a more reliable PDF parser
-        // We could use alternatives like pdf.js-extract or pdfjs-dist in the future
-        return "PDF content extraction temporarily disabled. PDF uploaded successfully but text extraction is in progress.";
-        
-        // The previous implementation was causing initialization errors:
-        // const pdfData = await pdfParse(file);
-        // return pdfData.text || 'No text extracted from PDF';
+        //const fs = require('fs');
+        const pdf = require('pdf-parse');
+        pdf(file).then(function(data: any) {
+          console.log("PDF text:",data.text);
+          return data.text || 'No text content found in PDF';
+        })
+        return 'No text content found in PDF';
       } catch (pdfError) {
         console.error('PDF parsing error:', pdfError);
         return 'Unable to parse PDF content';
