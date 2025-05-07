@@ -1,4 +1,5 @@
 import mammoth from 'mammoth';
+import pdfParse from 'pdf-parse';
 
 /**
  * Extract text content from various document types
@@ -11,13 +12,8 @@ export async function extractTextFromDocument(
     // Handle different file types
     if (fileType === 'application/pdf') {
       try {
-        //const fs = require('fs');
-        const pdf = require('pdf-parse');
-        pdf(file).then(function(data: any) {
-          console.log("PDF text:",data.text);
-          return data.text || 'No text content found in PDF';
-        })
-        return 'No text content found in PDF';
+        const data = await pdfParse(file);
+        return data.text || 'No text content found in PDF';
       } catch (pdfError) {
         console.error('PDF parsing error:', pdfError);
         return 'Unable to parse PDF content';

@@ -18,6 +18,9 @@ const nextConfig = {
     }
     return config;
   },
+  experimental: {
+    serverComponentsExternalPackages: ["pdf-parse"],
+  },
 }
 
 module.exports = nextConfig
